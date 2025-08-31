@@ -2,6 +2,7 @@
 <html lang="tr">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Pong Oyunu</title>
     <style>
       body {
@@ -162,7 +163,7 @@
         dy: 5,
       };
 
-      // Klavye kontrol
+      // Klavye ve dokunmatik kontrol
       let upPressed = false,
         downPressed = false;
       let difficulty = "orta";
@@ -171,6 +172,7 @@
       // 🎵 Ses seviyeleri ayarlandı
       if (bgMusic) bgMusic.volume = 0.05;
 
+      // Klavye olay dinleyicileri
       document.addEventListener("keydown", (e) => {
         if (bgMusic && bgMusic.paused)
           bgMusic.play().catch((e) => console.error("Müzik çalınamadı:", e));
@@ -189,6 +191,37 @@
         if (e.key === "ArrowDown") {
           downPressed = false;
         }
+      });
+
+      // Dokunmatik olay dinleyicileri
+      canvas.addEventListener("touchstart", (e) => {
+        e.preventDefault(); // Varsayılan kaydırma hareketini engelle
+        const touchY = e.touches[0].clientY;
+        const canvasRect = canvas.getBoundingClientRect();
+
+        // Dokunmanın canvas içinde olup olmadığını kontrol et
+        if (touchY >= canvasRect.top && touchY <= canvasRect.bottom) {
+          const relativeY = touchY - canvasRect.top;
+          if (relativeY < canvas.height / 2) {
+            upPressed = true;
+            downPressed = false;
+          } else {
+            downPressed = true;
+            upPressed = false;
+          }
+        }
+      });
+
+      canvas.addEventListener("touchend", (e) => {
+        e.preventDefault();
+        upPressed = false;
+        downPressed = false;
+      });
+
+      canvas.addEventListener("touchcancel", (e) => {
+        e.preventDefault();
+        upPressed = false;
+        downPressed = false;
       });
 
       // Butonlara tıklama sesi ekle
@@ -354,7 +387,7 @@
 
         if (gameOver) {
           ctx.font = "50px Arial";
-          ctx.textAlign = "center"; // Metni ortalamak için
+          ctx.textAlign = "center";
 
           if (player.score >= 3) {
             ctx.fillStyle = "gold";
