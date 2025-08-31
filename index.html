@@ -7,16 +7,24 @@
     <style>
       body {
         display: flex;
+        flex-direction: column;
         justify-content: center;
         align-items: center;
-        height: 100vh;
+        min-height: 100vh;
         background: #111;
         margin: 0;
+        overflow: hidden; /* Ekrandaki fazlalık kaydırmayı engelle */
       }
       canvas {
         background: #000;
         display: block;
         border: 2px solid #fff;
+        width: min(
+          800px,
+          90vw
+        ); /* Maksimum 800px veya ekran genişliğinin %90'ı */
+        height: auto;
+        aspect-ratio: 16 / 10; /* 16:10 oranı koru */
       }
       .button-container {
         text-align: center;
@@ -50,7 +58,7 @@
   </head>
   <body>
     <div>
-      <canvas id="gameCanvas" width="800" height="500"></canvas>
+      <canvas id="gameCanvas"></canvas>
 
       <div class="button-container">
         <button id="restartBtn" class="game-btn">🔄Yeniden Başlat</button>
@@ -89,8 +97,8 @@
     <audio id="bgMusic" src="sounds/backgroundMusic.mp3" loop autoplay></audio>
     <audio id="hitSound" src="sounds/scoreSound.mp3"></audio>
     <audio id="scoreSound" src="sounds/myGoal.mp3"></audio>
-    <audio id="winGameSound" src="sounds/galibiyet.mp3"></audio>
-    <audio id="loseGameSound" src="sounds/yenilgi.mp3"></audio>
+    <audio id="winGameSound" src="sounds/myGoal.mp3"></audio>
+    <audio id="loseGameSound" src="sounds/crash.mp3"></audio>
     <audio id="buttonClickSound" src="sounds/tus-sesi.mp3"></audio>
 
     <script>
@@ -138,36 +146,51 @@
 
       var gameOver = false;
       var isPaused = true;
-
-      // Oyun değişkenleri
-      const paddleWidth = 10;
-      const playerHeight = 110;
-      const computerHeight = 110;
-      const player = {
-        x: 20,
-        y: canvas.height / 2 - playerHeight / 2,
-        score: 0,
-        height: playerHeight,
-      };
-      const computer = {
-        x: canvas.width - 30,
-        y: canvas.height / 2 - computerHeight / 2,
-        score: 0,
-        height: computerHeight,
-      };
-      const ball = {
-        x: canvas.width / 2,
-        y: canvas.height / 2,
-        radius: 10,
-        dx: 5,
-        dy: 5,
-      };
-
-      // Klavye ve dokunmatik kontrol
       let upPressed = false,
         downPressed = false;
       let difficulty = "orta";
       let hitProbability = 1;
+
+      // Oyun değişkenleri
+      const game = {};
+
+      function initializeGameElements() {
+        // Canvas'ın güncel boyutlarını al
+        const canvasWidth = canvas.clientWidth;
+        const canvasHeight = canvas.clientHeight;
+
+        game.paddleWidth = canvasWidth * 0.0125;
+        game.playerHeight = canvasHeight * 0.22;
+        game.computerHeight = canvasHeight * 0.22;
+        game.player = {
+          x: canvasWidth * 0.025,
+          y: canvasHeight / 2 - game.playerHeight / 2,
+          score: 0,
+          height: game.playerHeight,
+        };
+        game.computer = {
+          x: canvasWidth - (canvasWidth * 0.025 + game.paddleWidth),
+          y: canvasHeight / 2 - game.computerHeight / 2,
+          score: 0,
+          height: game.computerHeight,
+        };
+        game.ball = {
+          x: canvasWidth / 2,
+          y: canvasHeight / 2,
+          radius: canvasWidth * 0.01,
+          dx: (canvasWidth / 800) * 5,
+          dy: (canvasHeight / 500) * 5,
+        };
+      }
+
+      function setupCanvasSize() {
+        canvas.width = canvas.clientWidth;
+        canvas.height = canvas.clientHeight;
+        initializeGameElements();
+      }
+
+      window.addEventListener("load", setupCanvasSize);
+      window.addEventListener("resize", setupCanvasSize);
 
       // 🎵 Ses seviyeleri ayarlandı
       if (bgMusic) bgMusic.volume = 0.05;
@@ -233,11 +256,9 @@
 
       document.getElementById("restartBtn").addEventListener("click", () => {
         document.getElementById("levelMenu").style.display = "flex";
-        player.score = 0;
-        computer.score = 0;
-        player.y = canvas.height / 2 - playerHeight / 2;
-        computer.y = canvas.height / 2 - computerHeight / 2;
-        resetBall();
+        game.player.score = 0;
+        game.computer.score = 0;
+        initializeGameElements(); // Oyunu yeniden başlatırken elemanları sıfırla
         gameOver = false;
         isPaused = true;
         document.getElementById("pauseBtn").textContent = "⏸️ Duraklat";
@@ -253,9 +274,9 @@
       function startGame(level) {
         difficulty = level;
         document.getElementById("levelMenu").style.display = "none";
-        player.score = 0;
-        computer.score = 0;
-        resetBall();
+        game.player.score = 0;
+        game.computer.score = 0;
+        initializeGameElements();
         gameOver = false;
         isPaused = false;
 
@@ -269,21 +290,25 @@
 
       function drawPaddle(x, y, height) {
         ctx.fillStyle = "red";
-        ctx.fillRect(x, y, paddleWidth, height);
+        ctx.fillRect(x, y, game.paddleWidth, height);
       }
 
       function drawBall() {
         ctx.beginPath();
-        ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+        ctx.arc(game.ball.x, game.ball.y, game.ball.radius, 0, Math.PI * 2);
         ctx.fillStyle = "#fff";
         ctx.fill();
         ctx.closePath();
       }
 
       function drawScore() {
-        ctx.font = "30px Arial";
-        ctx.fillText(player.score, canvas.width / 4, 50);
-        ctx.fillText(computer.score, (3 * canvas.width) / 4, 50);
+        ctx.font = `${canvas.height * 0.06}px Arial`;
+        ctx.fillText(game.player.score, canvas.width / 4, canvas.height * 0.1);
+        ctx.fillText(
+          game.computer.score,
+          (3 * canvas.width) / 4,
+          canvas.height * 0.1
+        );
       }
 
       function drawFirework(x, y) {
@@ -297,9 +322,9 @@
       }
 
       function resetBall() {
-        ball.x = canvas.width / 2;
-        ball.y = canvas.height / 2;
-        ball.dx *= -1;
+        game.ball.x = canvas.width / 2;
+        game.ball.y = canvas.height / 2;
+        game.ball.dx *= -1;
       }
 
       let lastTime = 0;
@@ -315,9 +340,9 @@
       }
 
       function update(deltaTime) {
-        if (player.score >= 3 || computer.score >= 3) {
+        if (game.player.score >= 3 || game.computer.score >= 3) {
           if (!gameOver) {
-            if (player.score >= 3) {
+            if (game.player.score >= 3) {
               playSound(winGameSound);
             } else {
               playSound(loseGameSound);
@@ -328,55 +353,58 @@
         }
 
         const playerSpeed = 7;
-        if (upPressed && player.y > 0) {
-          player.y -= playerSpeed * deltaTime;
+        if (upPressed && game.player.y > 0) {
+          game.player.y -= playerSpeed * deltaTime * (canvas.height / 500);
         }
 
-        if (downPressed && player.y < canvas.height - player.height) {
-          player.y += playerSpeed * deltaTime;
+        if (downPressed && game.player.y < canvas.height - game.player.height) {
+          game.player.y += playerSpeed * deltaTime * (canvas.height / 500);
         }
 
-        ball.x += ball.dx * deltaTime;
-        ball.y += ball.dy * deltaTime;
+        game.ball.x += game.ball.dx * deltaTime;
+        game.ball.y += game.ball.dy * deltaTime;
 
-        if (ball.y + ball.radius > canvas.height || ball.y - ball.radius < 0) {
-          ball.dy *= -1;
+        if (
+          game.ball.y + game.ball.radius > canvas.height ||
+          game.ball.y - game.ball.radius < 0
+        ) {
+          game.ball.dy *= -1;
         }
 
         if (
-          ball.x - ball.radius < player.x + paddleWidth &&
-          ball.y > player.y &&
-          ball.y < player.y + player.height
+          game.ball.x - game.ball.radius < game.player.x + game.paddleWidth &&
+          game.ball.y > game.player.y &&
+          game.ball.y < game.player.y + game.player.height
         ) {
-          ball.dx *= -1;
+          game.ball.dx *= -1;
           playSound(hitSound);
         }
 
         if (
-          ball.x + ball.radius > computer.x &&
-          ball.y > computer.y &&
-          ball.y < computer.y + computer.height
+          game.ball.x + game.ball.radius > game.computer.x &&
+          game.ball.y > game.computer.y &&
+          game.ball.y < game.computer.y + game.computer.height
         ) {
-          ball.dx *= -1;
+          game.ball.dx *= -1;
           playSound(hitSound);
         }
 
         // Bilgisayar çubuğu
         if (Math.random() < hitProbability) {
-          const targetY = ball.y - computer.height / 2;
-          computer.y += (targetY - computer.y) * 0.1 * deltaTime;
+          const targetY = game.ball.y - game.computer.height / 2;
+          game.computer.y += (targetY - game.computer.y) * 0.1 * deltaTime;
         }
-        if (computer.y < 0) computer.y = 0;
-        if (computer.y + computer.height > canvas.height)
-          computer.y = canvas.height - computer.height;
+        if (game.computer.y < 0) game.computer.y = 0;
+        if (game.computer.y + game.computer.height > canvas.height)
+          game.computer.y = canvas.height - game.computer.height;
 
-        if (ball.x < 0) {
-          computer.score++;
+        if (game.ball.x < 0) {
+          game.computer.score++;
           playSound(scoreSound);
           resetBall();
         }
-        if (ball.x > canvas.width) {
-          player.score++;
+        if (game.ball.x > canvas.width) {
+          game.player.score++;
           playSound(scoreSound);
           resetBall();
         }
@@ -386,10 +414,10 @@
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         if (gameOver) {
-          ctx.font = "50px Arial";
+          ctx.font = `${canvas.height * 0.1}px Arial`;
           ctx.textAlign = "center";
 
-          if (player.score >= 3) {
+          if (game.player.score >= 3) {
             ctx.fillStyle = "gold";
             ctx.fillText(
               "🏆 SEN KAZANDIN!",
@@ -405,7 +433,7 @@
             );
           }
 
-          if (player.score >= 3) {
+          if (game.player.score >= 3) {
             for (let i = 0; i < 20; i++) {
               drawFirework(
                 Math.random() * canvas.width,
@@ -416,8 +444,8 @@
           return;
         }
 
-        drawPaddle(player.x, player.y, player.height);
-        drawPaddle(computer.x, computer.y, computer.height);
+        drawPaddle(game.player.x, game.player.y, game.player.height);
+        drawPaddle(game.computer.x, game.computer.y, game.computer.height);
         drawBall();
         drawScore();
       }
