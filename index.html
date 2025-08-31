@@ -153,6 +153,16 @@
 
       // Oyun değişkenleri
       const game = {};
+      const POWERUP_SPAWN_INTERVAL = 10000; // 10 saniye
+      let lastPowerUpTime = 0;
+      let powerup = null;
+      let isComputerFrozen = false;
+
+      // Topları birden fazla top için bir diziye dönüştür
+      let balls = [];
+
+      // Yıldızlar için dizi
+      let stars = [];
 
       function initializeGameElements() {
         // Canvas'ın güncel boyutlarını al
@@ -174,13 +184,32 @@
           score: 0,
           height: game.computerHeight,
         };
-        game.ball = {
-          x: canvasWidth / 2,
-          y: canvasHeight / 2,
-          radius: canvasWidth * 0.01,
-          dx: (canvasWidth / 800) * 5,
-          dy: (canvasHeight / 500) * 5,
-        };
+
+        // Tek top yerine bir dizi oluştur
+        balls = [
+          {
+            x: canvasWidth / 2,
+            y: canvasHeight / 2,
+            radius: canvasWidth * 0.01,
+            dx: (canvasWidth / 800) * 5,
+            dy: (canvasHeight / 500) * 5,
+            baseSpeed: (canvasWidth / 800) * 5,
+          },
+        ];
+
+        game.player.originalHeight = game.playerHeight; // Orijinal yüksekliği sakla
+        game.computer.originalHeight = game.computerHeight;
+
+        // Yıldızları oluştur
+        stars = [];
+        for (let i = 0; i < 200; i++) {
+          stars.push({
+            x: Math.random() * canvasWidth,
+            y: Math.random() * canvasHeight,
+            radius: Math.random() * 2,
+            speed: Math.random() * 0.5 + 0.1,
+          });
+        }
       }
 
       function setupCanvasSize() {
@@ -279,6 +308,7 @@
         initializeGameElements();
         gameOver = false;
         isPaused = false;
+        lastPowerUpTime = Date.now();
 
         if (level === "kolay") hitProbability = 0.3;
         else if (level === "orta") hitProbability = 0.5;
@@ -288,14 +318,14 @@
           bgMusic.play().catch((e) => console.error("Müzik çalınamadı:", e));
       }
 
-      function drawPaddle(x, y, height) {
-        ctx.fillStyle = "red";
+      function drawPaddle(x, y, height, isFrozen = false) {
+        ctx.fillStyle = isFrozen ? "purple" : "red";
         ctx.fillRect(x, y, game.paddleWidth, height);
       }
 
-      function drawBall() {
+      function drawBall(ball) {
         ctx.beginPath();
-        ctx.arc(game.ball.x, game.ball.y, game.ball.radius, 0, Math.PI * 2);
+        ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
         ctx.fillStyle = "#fff";
         ctx.fill();
         ctx.closePath();
@@ -321,10 +351,96 @@
         }
       }
 
-      function resetBall() {
-        game.ball.x = canvas.width / 2;
-        game.ball.y = canvas.height / 2;
-        game.ball.dx *= -1;
+      function drawPowerUp() {
+        if (powerup) {
+          ctx.beginPath();
+          ctx.arc(powerup.x, powerup.y, powerup.radius, 0, Math.PI * 2);
+          ctx.fillStyle = powerup.color;
+          ctx.fill();
+          ctx.closePath();
+        }
+      }
+
+      function drawStarryBackground() {
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "white";
+        stars.forEach((star) => {
+          ctx.beginPath();
+          ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.closePath();
+        });
+      }
+
+      function resetBall(ball) {
+        ball.x = canvas.width / 2;
+        ball.y = canvas.height / 2;
+        ball.dx *= -1;
+
+        // Topun hızını arttır
+        ball.dx += Math.sign(ball.dx) * (ball.baseSpeed * 0.1);
+        ball.dy += Math.sign(ball.dy) * (ball.baseSpeed * 0.1);
+      }
+
+      function spawnPowerUp() {
+        const types = ["widenPaddle", "freezeOpponent", "duplicateBall"];
+        const type = types[Math.floor(Math.random() * types.length)];
+
+        let color = "";
+        switch (type) {
+          case "widenPaddle":
+            color = "green";
+            break;
+          case "freezeOpponent":
+            color = "purple";
+            break;
+          case "duplicateBall":
+            color = "cyan";
+            break;
+        }
+
+        powerup = {
+          x: Math.random() * (canvas.width / 2) + canvas.width / 4,
+          y: Math.random() * (canvas.height / 2) + canvas.height / 4,
+          radius: canvas.width * 0.02,
+          type: type,
+          color: color,
+        };
+      }
+
+      function applyPowerUpEffect() {
+        if (!powerup) return;
+
+        switch (powerup.type) {
+          case "widenPaddle":
+            game.player.height = game.player.height * 1.5;
+            setTimeout(() => {
+              game.player.height = game.player.originalHeight;
+            }, 5000); // 5 saniye sonra normale dön
+            break;
+          case "freezeOpponent":
+            isComputerFrozen = true;
+            setTimeout(() => {
+              isComputerFrozen = false;
+            }, 5000); // 5 saniye sonra normale dön
+            break;
+          case "duplicateBall":
+            if (balls.length < 2) {
+              const originalBall = balls[0];
+              balls.push({
+                x: originalBall.x,
+                y: originalBall.y,
+                radius: originalBall.radius,
+                dx: -originalBall.dx,
+                dy: -originalBall.dy,
+              });
+            }
+            break;
+        }
+
+        powerup = null; // Güçlendirmeyi tüket
+        lastPowerUpTime = Date.now();
       }
 
       let lastTime = 0;
@@ -352,6 +468,21 @@
           return;
         }
 
+        // Güçlendirme kontrolü
+        if (!powerup && Date.now() - lastPowerUpTime > POWERUP_SPAWN_INTERVAL) {
+          spawnPowerUp();
+        }
+
+        // Yıldızları güncelle
+        stars.forEach((star) => {
+          star.x -= star.speed;
+          if (star.x < 0) {
+            star.x = canvas.width;
+            star.y = Math.random() * canvas.height;
+          }
+        });
+
+        // Oyuncu çubuğunu güncelle
         const playerSpeed = 7;
         if (upPressed && game.player.y > 0) {
           game.player.y -= playerSpeed * deltaTime * (canvas.height / 500);
@@ -361,57 +492,84 @@
           game.player.y += playerSpeed * deltaTime * (canvas.height / 500);
         }
 
-        game.ball.x += game.ball.dx * deltaTime;
-        game.ball.y += game.ball.dy * deltaTime;
-
-        if (
-          game.ball.y + game.ball.radius > canvas.height ||
-          game.ball.y - game.ball.radius < 0
-        ) {
-          game.ball.dy *= -1;
-        }
-
-        if (
-          game.ball.x - game.ball.radius < game.player.x + game.paddleWidth &&
-          game.ball.y > game.player.y &&
-          game.ball.y < game.player.y + game.player.height
-        ) {
-          game.ball.dx *= -1;
-          playSound(hitSound);
-        }
-
-        if (
-          game.ball.x + game.ball.radius > game.computer.x &&
-          game.ball.y > game.computer.y &&
-          game.ball.y < game.computer.y + game.computer.height
-        ) {
-          game.ball.dx *= -1;
-          playSound(hitSound);
-        }
-
-        // Bilgisayar çubuğu
-        if (Math.random() < hitProbability) {
-          const targetY = game.ball.y - game.computer.height / 2;
-          game.computer.y += (targetY - game.computer.y) * 0.1 * deltaTime;
+        // Bilgisayar çubuğunu güncelle (donuk değilse)
+        if (!isComputerFrozen) {
+          if (Math.random() < hitProbability) {
+            const targetY = balls[0].y - game.computer.height / 2;
+            game.computer.y += (targetY - game.computer.y) * 0.1 * deltaTime;
+          }
         }
         if (game.computer.y < 0) game.computer.y = 0;
         if (game.computer.y + game.computer.height > canvas.height)
           game.computer.y = canvas.height - game.computer.height;
 
-        if (game.ball.x < 0) {
-          game.computer.score++;
-          playSound(scoreSound);
-          resetBall();
-        }
-        if (game.ball.x > canvas.width) {
-          game.player.score++;
-          playSound(scoreSound);
-          resetBall();
-        }
+        // Topları güncelle
+        balls.forEach((ball, index) => {
+          ball.x += ball.dx * deltaTime;
+          ball.y += ball.dy * deltaTime;
+
+          if (
+            ball.y + ball.radius > canvas.height ||
+            ball.y - ball.radius < 0
+          ) {
+            ball.dy *= -1;
+          }
+
+          // Güçlendirme ile top çarpışması
+          if (powerup) {
+            const distance = Math.hypot(ball.x - powerup.x, ball.y - powerup.y);
+            if (distance < ball.radius + powerup.radius) {
+              applyPowerUpEffect();
+            }
+          }
+
+          // Oyuncu çubuğuyla çarpışma
+          if (
+            ball.x - ball.radius < game.player.x + game.paddleWidth &&
+            ball.y > game.player.y &&
+            ball.y < game.player.y + game.player.height
+          ) {
+            ball.dx *= -1;
+            playSound(hitSound);
+          }
+
+          // Bilgisayar çubuğuyla çarpışma
+          if (
+            ball.x + ball.radius > game.computer.x &&
+            ball.y > game.computer.y &&
+            ball.y < game.computer.y + game.computer.height
+          ) {
+            ball.dx *= -1;
+            playSound(hitSound);
+          }
+
+          // Sayı atma
+          if (ball.x < 0) {
+            game.computer.score++;
+            playSound(scoreSound);
+            if (balls.length > 1) {
+              balls.splice(index, 1);
+              if (balls.length === 0) resetBall(balls[0]);
+            } else {
+              resetBall(balls[0]);
+            }
+          }
+          if (ball.x > canvas.width) {
+            game.player.score++;
+            playSound(scoreSound);
+            if (balls.length > 1) {
+              balls.splice(index, 1);
+              if (balls.length === 0) resetBall(balls[0]);
+            } else {
+              resetBall(balls[0]);
+            }
+          }
+        });
       }
 
       function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // İlk olarak arka planı çiz
+        drawStarryBackground();
 
         if (gameOver) {
           ctx.font = `${canvas.height * 0.1}px Arial`;
@@ -445,9 +603,18 @@
         }
 
         drawPaddle(game.player.x, game.player.y, game.player.height);
-        drawPaddle(game.computer.x, game.computer.y, game.computer.height);
-        drawBall();
+        drawPaddle(
+          game.computer.x,
+          game.computer.y,
+          game.computer.height,
+          isComputerFrozen
+        );
+
+        // Tüm topları çiz
+        balls.forEach((ball) => drawBall(ball));
+
         drawScore();
+        drawPowerUp();
       }
 
       requestAnimationFrame(gameLoop);
