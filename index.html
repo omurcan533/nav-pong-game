@@ -54,21 +54,8 @@
         transform: translateY(1px);
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
       }
-    </style>
-  </head>
-  <body>
-    <div>
-      <canvas id="gameCanvas"></canvas>
 
-      <div class="button-container">
-        <button id="restartBtn" class="game-btn">🔄Yeniden Başlat</button>
-        <button id="pauseBtn" class="game-btn">⏸️ Duraklat</button>
-      </div>
-    </div>
-
-    <div
-      id="levelMenu"
-      style="
+      .menu-container {
         position: absolute;
         top: 0;
         left: 0;
@@ -83,8 +70,46 @@
         font-family: Arial;
         font-size: 24px;
         z-index: 10;
-      "
-    >
+        text-align: center;
+      }
+      .menu-container h1 {
+        font-size: 48px;
+        margin-bottom: 20px;
+      }
+      .menu-container p {
+        font-size: 20px;
+        margin-bottom: 30px;
+      }
+      .settings-group {
+        margin-bottom: 25px;
+      }
+      .settings-group label,
+      .settings-group select,
+      .settings-group input {
+        font-size: 18px;
+        margin: 5px;
+      }
+      .settings-group input[type="color"] {
+        width: 50px;
+        height: 30px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      <canvas id="gameCanvas"></canvas>
+
+      <div class="button-container">
+        <button id="restartBtn" class="game-btn">🔄Yeniden Başlat</button>
+        <button id="pauseBtn" class="game-btn">⏸️ Duraklat</button>
+        <button id="settingsBtn" class="game-btn">⚙️ Ayarlar</button>
+      </div>
+    </div>
+
+    <div id="levelMenu" class="menu-container">
       <h1>Pong Oyunu</h1>
       <p>Zorluk seviyenizi seçin:</p>
       <div style="margin-top: 20px">
@@ -92,6 +117,45 @@
         <button class="game-btn" onclick="startGame('orta')">Orta</button>
         <button class="game-btn" onclick="startGame('zor')">Zor</button>
       </div>
+    </div>
+
+    <div id="settingsMenu" class="menu-container" style="display: none">
+      <h1>Ayarlar</h1>
+      <div class="settings-group">
+        <label for="ballColor">Top Rengi:</label>
+        <input type="color" id="ballColor" value="#ffffff" />
+      </div>
+      <div class="settings-group">
+        <label for="paddleColor">Raket Rengi:</label>
+        <input type="color" id="paddleColor" value="#ff0000" />
+      </div>
+      <div class="settings-group">
+        <label for="bgTheme">Arka Plan Teması:</label>
+        <select id="bgTheme">
+          <option value="stars">Yıldız Alanı</option>
+          <option value="energy">Enerji Hattı</option>
+          <option value="solid">Koyu Temiz</option>
+        </select>
+      </div>
+      <div class="settings-group">
+        <label for="musicSelect">Müzik:</label>
+        <select id="musicSelect">
+          <option value="backgroundMusic.mp3">Klasik</option>
+          <option value="fastPaced.mp3">Hızlı Ritim</option>
+        </select>
+      </div>
+      <div class="settings-group">
+        <label for="sfxVolume">Ses Efektleri Ses Seviyesi:</label>
+        <input
+          type="range"
+          id="sfxVolume"
+          min="0"
+          max="1"
+          step="0.1"
+          value="0.2"
+        />
+      </div>
+      <button class="game-btn" id="closeSettingsBtn">Kapat</button>
     </div>
 
     <audio id="bgMusic" src="sounds/backgroundMusic.mp3" loop autoplay></audio>
@@ -128,10 +192,17 @@
       const bgMusic = getAudioElement("bgMusic");
       const buttonClickSound = getAudioElement("buttonClickSound");
 
+      const ballColorInput = document.getElementById("ballColor");
+      const paddleColorInput = document.getElementById("paddleColor");
+      const bgThemeSelect = document.getElementById("bgTheme");
+      const musicSelect = document.getElementById("musicSelect");
+      const sfxVolumeInput = document.getElementById("sfxVolume");
+
       // Sesleri güvenli bir şekilde oynatan fonksiyon
       const playSound = (audioEl) => {
         if (audioEl) {
           try {
+            audioEl.volume = sfxVolumeInput.value;
             audioEl
               .cloneNode(true)
               .play()
@@ -163,9 +234,39 @@
 
       // Yıldızlar için dizi
       let stars = [];
+      let energyLines = [];
+
+      let settings = {
+        ballColor: "#ffffff",
+        paddleColor: "#ff0000",
+        bgTheme: "stars",
+      };
+
+      function initializeBackgrounds() {
+        // Yıldızları oluştur
+        stars = [];
+        for (let i = 0; i < 200; i++) {
+          stars.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            radius: Math.random() * 2,
+            speed: Math.random() * 0.5 + 0.1,
+          });
+        }
+        // Enerji hatlarını oluştur
+        energyLines = [];
+        for (let i = 0; i < 50; i++) {
+          energyLines.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            length: Math.random() * 50 + 20,
+            angle: Math.random() * Math.PI * 2,
+            speed: Math.random() * 0.5 + 0.2,
+          });
+        }
+      }
 
       function initializeGameElements() {
-        // Canvas'ın güncel boyutlarını al
         const canvasWidth = canvas.clientWidth;
         const canvasHeight = canvas.clientHeight;
 
@@ -185,7 +286,6 @@
           height: game.computerHeight,
         };
 
-        // Tek top yerine bir dizi oluştur
         balls = [
           {
             x: canvasWidth / 2,
@@ -197,19 +297,10 @@
           },
         ];
 
-        game.player.originalHeight = game.playerHeight; // Orijinal yüksekliği sakla
+        game.player.originalHeight = game.playerHeight;
         game.computer.originalHeight = game.computerHeight;
 
-        // Yıldızları oluştur
-        stars = [];
-        for (let i = 0; i < 200; i++) {
-          stars.push({
-            x: Math.random() * canvasWidth,
-            y: Math.random() * canvasHeight,
-            radius: Math.random() * 2,
-            speed: Math.random() * 0.5 + 0.1,
-          });
-        }
+        initializeBackgrounds();
       }
 
       function setupCanvasSize() {
@@ -221,10 +312,8 @@
       window.addEventListener("load", setupCanvasSize);
       window.addEventListener("resize", setupCanvasSize);
 
-      // 🎵 Ses seviyeleri ayarlandı
       if (bgMusic) bgMusic.volume = 0.05;
 
-      // Klavye olay dinleyicileri
       document.addEventListener("keydown", (e) => {
         if (bgMusic && bgMusic.paused)
           bgMusic.play().catch((e) => console.error("Müzik çalınamadı:", e));
@@ -245,13 +334,11 @@
         }
       });
 
-      // Dokunmatik olay dinleyicileri
       canvas.addEventListener("touchstart", (e) => {
-        e.preventDefault(); // Varsayılan kaydırma hareketini engelle
+        e.preventDefault();
         const touchY = e.touches[0].clientY;
         const canvasRect = canvas.getBoundingClientRect();
 
-        // Dokunmanın canvas içinde olup olmadığını kontrol et
         if (touchY >= canvasRect.top && touchY <= canvasRect.bottom) {
           const relativeY = touchY - canvasRect.top;
           if (relativeY < canvas.height / 2) {
@@ -276,18 +363,11 @@
         downPressed = false;
       });
 
-      // Butonlara tıklama sesi ekle
-      document.querySelectorAll(".game-btn").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          playSound(buttonClickSound);
-        });
-      });
-
       document.getElementById("restartBtn").addEventListener("click", () => {
         document.getElementById("levelMenu").style.display = "flex";
         game.player.score = 0;
         game.computer.score = 0;
-        initializeGameElements(); // Oyunu yeniden başlatırken elemanları sıfırla
+        initializeGameElements();
         gameOver = false;
         isPaused = true;
         document.getElementById("pauseBtn").textContent = "⏸️ Duraklat";
@@ -298,6 +378,42 @@
         document.getElementById("pauseBtn").textContent = isPaused
           ? "▶️ Başlat"
           : "⏸️ Duraklat";
+      });
+
+      document.getElementById("settingsBtn").addEventListener("click", () => {
+        isPaused = true;
+        document.getElementById("settingsMenu").style.display = "flex";
+      });
+
+      document
+        .getElementById("closeSettingsBtn")
+        .addEventListener("click", () => {
+          document.getElementById("settingsMenu").style.display = "none";
+        });
+
+      ballColorInput.addEventListener("input", (e) => {
+        settings.ballColor = e.target.value;
+      });
+
+      paddleColorInput.addEventListener("input", (e) => {
+        settings.paddleColor = e.target.value;
+      });
+
+      bgThemeSelect.addEventListener("change", (e) => {
+        settings.bgTheme = e.target.value;
+      });
+
+      musicSelect.addEventListener("change", (e) => {
+        bgMusic.src = `sounds/${e.target.value}`;
+        bgMusic.play().catch((e) => console.error("Müzik çalınamadı:", e));
+      });
+
+      sfxVolumeInput.addEventListener("input", (e) => {
+        if (hitSound) hitSound.volume = e.target.value;
+        if (scoreSound) scoreSound.volume = e.target.value;
+        if (winGameSound) winGameSound.volume = e.target.value;
+        if (loseGameSound) loseGameSound.volume = e.target.value;
+        if (buttonClickSound) buttonClickSound.volume = e.target.value;
       });
 
       function startGame(level) {
@@ -319,14 +435,14 @@
       }
 
       function drawPaddle(x, y, height, isFrozen = false) {
-        ctx.fillStyle = isFrozen ? "purple" : "red";
+        ctx.fillStyle = isFrozen ? "purple" : settings.paddleColor;
         ctx.fillRect(x, y, game.paddleWidth, height);
       }
 
       function drawBall(ball) {
         ctx.beginPath();
         ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
-        ctx.fillStyle = "#fff";
+        ctx.fillStyle = settings.ballColor;
         ctx.fill();
         ctx.closePath();
       }
@@ -373,12 +489,29 @@
         });
       }
 
+      function drawEnergyBackground() {
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        energyLines.forEach((line) => {
+          ctx.beginPath();
+          ctx.moveTo(line.x, line.y);
+          ctx.lineTo(
+            line.x + Math.cos(line.angle) * line.length,
+            line.y + Math.sin(line.angle) * line.length
+          );
+          ctx.strokeStyle = `hsl(${
+            Math.abs(Math.sin(line.x / 100)) * 120 + 200
+          }, 100%, 50%)`;
+          ctx.stroke();
+        });
+      }
+
       function resetBall(ball) {
         ball.x = canvas.width / 2;
         ball.y = canvas.height / 2;
         ball.dx *= -1;
 
-        // Topun hızını arttır
         ball.dx += Math.sign(ball.dx) * (ball.baseSpeed * 0.1);
         ball.dy += Math.sign(ball.dy) * (ball.baseSpeed * 0.1);
       }
@@ -417,13 +550,13 @@
             game.player.height = game.player.height * 1.5;
             setTimeout(() => {
               game.player.height = game.player.originalHeight;
-            }, 5000); // 5 saniye sonra normale dön
+            }, 5000);
             break;
           case "freezeOpponent":
             isComputerFrozen = true;
             setTimeout(() => {
               isComputerFrozen = false;
-            }, 5000); // 5 saniye sonra normale dön
+            }, 5000);
             break;
           case "duplicateBall":
             if (balls.length < 2) {
@@ -439,7 +572,7 @@
             break;
         }
 
-        powerup = null; // Güçlendirmeyi tüket
+        powerup = null;
         lastPowerUpTime = Date.now();
       }
 
@@ -468,21 +601,37 @@
           return;
         }
 
-        // Güçlendirme kontrolü
         if (!powerup && Date.now() - lastPowerUpTime > POWERUP_SPAWN_INTERVAL) {
           spawnPowerUp();
         }
 
-        // Yıldızları güncelle
-        stars.forEach((star) => {
-          star.x -= star.speed;
-          if (star.x < 0) {
-            star.x = canvas.width;
-            star.y = Math.random() * canvas.height;
-          }
-        });
+        if (settings.bgTheme === "stars") {
+          stars.forEach((star) => {
+            star.x -= star.speed;
+            if (star.x < 0) {
+              star.x = canvas.width;
+              star.y = Math.random() * canvas.height;
+            }
+          });
+        }
 
-        // Oyuncu çubuğunu güncelle
+        if (settings.bgTheme === "energy") {
+          energyLines.forEach((line) => {
+            line.x += Math.cos(line.angle) * line.speed;
+            line.y += Math.sin(line.angle) * line.speed;
+            if (
+              line.x < 0 ||
+              line.x > canvas.width ||
+              line.y < 0 ||
+              line.y > canvas.height
+            ) {
+              line.x = Math.random() * canvas.width;
+              line.y = Math.random() * canvas.height;
+              line.angle = Math.random() * Math.PI * 2;
+            }
+          });
+        }
+
         const playerSpeed = 7;
         if (upPressed && game.player.y > 0) {
           game.player.y -= playerSpeed * deltaTime * (canvas.height / 500);
@@ -492,7 +641,6 @@
           game.player.y += playerSpeed * deltaTime * (canvas.height / 500);
         }
 
-        // Bilgisayar çubuğunu güncelle (donuk değilse)
         if (!isComputerFrozen) {
           if (Math.random() < hitProbability) {
             const targetY = balls[0].y - game.computer.height / 2;
@@ -503,7 +651,6 @@
         if (game.computer.y + game.computer.height > canvas.height)
           game.computer.y = canvas.height - game.computer.height;
 
-        // Topları güncelle
         balls.forEach((ball, index) => {
           ball.x += ball.dx * deltaTime;
           ball.y += ball.dy * deltaTime;
@@ -515,7 +662,6 @@
             ball.dy *= -1;
           }
 
-          // Güçlendirme ile top çarpışması
           if (powerup) {
             const distance = Math.hypot(ball.x - powerup.x, ball.y - powerup.y);
             if (distance < ball.radius + powerup.radius) {
@@ -523,7 +669,6 @@
             }
           }
 
-          // Oyuncu çubuğuyla çarpışma
           if (
             ball.x - ball.radius < game.player.x + game.paddleWidth &&
             ball.y > game.player.y &&
@@ -533,7 +678,6 @@
             playSound(hitSound);
           }
 
-          // Bilgisayar çubuğuyla çarpışma
           if (
             ball.x + ball.radius > game.computer.x &&
             ball.y > game.computer.y &&
@@ -543,15 +687,13 @@
             playSound(hitSound);
           }
 
-          // Sayı atma
           if (ball.x < 0) {
             game.computer.score++;
             playSound(scoreSound);
             if (balls.length > 1) {
               balls.splice(index, 1);
-              if (balls.length === 0) resetBall(balls[0]);
             } else {
-              resetBall(balls[0]);
+              resetBall(ball);
             }
           }
           if (ball.x > canvas.width) {
@@ -559,17 +701,22 @@
             playSound(scoreSound);
             if (balls.length > 1) {
               balls.splice(index, 1);
-              if (balls.length === 0) resetBall(balls[0]);
             } else {
-              resetBall(balls[0]);
+              resetBall(ball);
             }
           }
         });
       }
 
       function draw() {
-        // İlk olarak arka planı çiz
-        drawStarryBackground();
+        if (settings.bgTheme === "stars") {
+          drawStarryBackground();
+        } else if (settings.bgTheme === "energy") {
+          drawEnergyBackground();
+        } else {
+          ctx.fillStyle = "black";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
 
         if (gameOver) {
           ctx.font = `${canvas.height * 0.1}px Arial`;
@@ -610,7 +757,6 @@
           isComputerFrozen
         );
 
-        // Tüm topları çiz
         balls.forEach((ball) => drawBall(ball));
 
         drawScore();
