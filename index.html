@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Pong Oyunu</title>
+    <style>
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background: #111;
+        margin: 0;
+      }
+      canvas {
+        background: #000;
+        display: block;
+        border: 2px solid #fff;
+      }
+      .button-container {
+        text-align: center;
+        margin-top: 20px;
+      }
+
+      .game-btn {
+        background: linear-gradient(135deg, #afaf40, #ac9537);
+        border: none;
+        color: white;
+        padding: 12px 25px;
+        margin: 0 10px;
+        font-size: 18px;
+        font-weight: bold;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      }
+
+      .game-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 10px rgba(0, 0, 0, 0.4);
+      }
+
+      .game-btn:active {
+        transform: translateY(1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      <canvas id="gameCanvas" width="800" height="500"></canvas>
+
+      <div class="button-container">
+        <button id="restartBtn" class="game-btn">🔄Yeniden Başlat</button>
+        <button id="pauseBtn" class="game-btn">⏸️ Duraklat</button>
+      </div>
+    </div>
+
+    <div
+      id="levelMenu"
+      style="
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        color: white;
+        font-family: Arial;
+        font-size: 24px;
+        z-index: 10;
+      "
+    >
+      <h1>Pong Oyunu</h1>
+      <p>Zorluk seviyenizi seçin:</p>
+      <div style="margin-top: 20px">
+        <button class="game-btn" onclick="startGame('kolay')">Kolay</button>
+        <button class="game-btn" onclick="startGame('orta')">Orta</button>
+        <button class="game-btn" onclick="startGame('zor')">Zor</button>
+      </div>
+    </div>
+
+    <audio id="bgMusic" src="sounds/backgroundMusic.mp3" loop autoplay></audio>
+    <audio id="hitSound" src="sounds/scoreSound.mp3"></audio>
+    <audio id="scoreSound" src="sounds/myGoal.mp3"></audio>
+    <audio id="winGameSound" src="sounds/galibiyet.mp3"></audio>
+    <audio id="loseGameSound" src="sounds/yenilgi.mp3"></audio>
+    <audio id="buttonClickSound" src="sounds/tus-sesi.mp3"></audio>
+
+    <script>
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+
+      // Ses elemanlarını güvenli bir şekilde al ve hata yakalama ekle
+      const getAudioElement = (id) => {
+        const audioEl = document.getElementById(id);
+        if (!audioEl) {
+          console.error(`Hata: ID "${id}" olan ses elemanı bulunamadı.`);
+          return null;
+        }
+        audioEl.addEventListener("error", (e) => {
+          console.error(
+            `Ses yükleme hatası: ID "${id}", SRC: "${audioEl.src}"`,
+            e
+          );
+        });
+        return audioEl;
+      };
+
+      const hitSound = getAudioElement("hitSound");
+      const scoreSound = getAudioElement("scoreSound");
+      const winGameSound = getAudioElement("winGameSound");
+      const loseGameSound = getAudioElement("loseGameSound");
+      const bgMusic = getAudioElement("bgMusic");
+      const buttonClickSound = getAudioElement("buttonClickSound");
+
+      // Sesleri güvenli bir şekilde oynatan fonksiyon
+      const playSound = (audioEl) => {
+        if (audioEl) {
+          try {
+            audioEl
+              .cloneNode(true)
+              .play()
+              .catch((e) => {
+                console.error("Ses çalınamadı:", e);
+              });
+          } catch (e) {
+            console.error("Ses çalma hatası:", e);
+          }
+        }
+      };
+
+      var gameOver = false;
+      var isPaused = true;
+
+      // Oyun değişkenleri
+      const paddleWidth = 10;
+      const playerHeight = 110;
+      const computerHeight = 110;
+      const player = {
+        x: 20,
+        y: canvas.height / 2 - playerHeight / 2,
+        score: 0,
+        height: playerHeight,
+      };
+      const computer = {
+        x: canvas.width - 30,
+        y: canvas.height / 2 - computerHeight / 2,
+        score: 0,
+        height: computerHeight,
+      };
+      const ball = {
+        x: canvas.width / 2,
+        y: canvas.height / 2,
+        radius: 10,
+        dx: 5,
+        dy: 5,
+      };
+
+      // Klavye kontrol
+      let upPressed = false,
+        downPressed = false;
+      let difficulty = "orta";
+      let hitProbability = 1;
+
+      // 🎵 Ses seviyeleri ayarlandı
+      if (bgMusic) bgMusic.volume = 0.05;
+
+      document.addEventListener("keydown", (e) => {
+        if (bgMusic && bgMusic.paused)
+          bgMusic.play().catch((e) => console.error("Müzik çalınamadı:", e));
+        if (e.key === "ArrowUp") {
+          upPressed = true;
+        }
+        if (e.key === "ArrowDown") {
+          downPressed = true;
+        }
+      });
+
+      document.addEventListener("keyup", (e) => {
+        if (e.key === "ArrowUp") {
+          upPressed = false;
+        }
+        if (e.key === "ArrowDown") {
+          downPressed = false;
+        }
+      });
+
+      // Butonlara tıklama sesi ekle
+      document.querySelectorAll(".game-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          playSound(buttonClickSound);
+        });
+      });
+
+      document.getElementById("restartBtn").addEventListener("click", () => {
+        document.getElementById("levelMenu").style.display = "flex";
+        player.score = 0;
+        computer.score = 0;
+        player.y = canvas.height / 2 - playerHeight / 2;
+        computer.y = canvas.height / 2 - computerHeight / 2;
+        resetBall();
+        gameOver = false;
+        isPaused = true;
+        document.getElementById("pauseBtn").textContent = "⏸️ Duraklat";
+      });
+
+      document.getElementById("pauseBtn").addEventListener("click", () => {
+        isPaused = !isPaused;
+        document.getElementById("pauseBtn").textContent = isPaused
+          ? "▶️ Başlat"
+          : "⏸️ Duraklat";
+      });
+
+      function startGame(level) {
+        difficulty = level;
+        document.getElementById("levelMenu").style.display = "none";
+        player.score = 0;
+        computer.score = 0;
+        resetBall();
+        gameOver = false;
+        isPaused = false;
+
+        if (level === "kolay") hitProbability = 0.3;
+        else if (level === "orta") hitProbability = 0.5;
+        else if (level === "zor") hitProbability = 0.9;
+
+        if (bgMusic && bgMusic.paused)
+          bgMusic.play().catch((e) => console.error("Müzik çalınamadı:", e));
+      }
+
+      function drawPaddle(x, y, height) {
+        ctx.fillStyle = "red";
+        ctx.fillRect(x, y, paddleWidth, height);
+      }
+
+      function drawBall() {
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+        ctx.fillStyle = "#fff";
+        ctx.fill();
+        ctx.closePath();
+      }
+
+      function drawScore() {
+        ctx.font = "30px Arial";
+        ctx.fillText(player.score, canvas.width / 4, 50);
+        ctx.fillText(computer.score, (3 * canvas.width) / 4, 50);
+      }
+
+      function drawFirework(x, y) {
+        for (let i = 0; i < 30; i++) {
+          ctx.beginPath();
+          ctx.arc(x, y, Math.random() * 4, 0, Math.PI * 2);
+          ctx.fillStyle = `hsl(${Math.random() * 360}, 100%, 50%)`;
+          ctx.fill();
+          ctx.closePath();
+        }
+      }
+
+      function resetBall() {
+        ball.x = canvas.width / 2;
+        ball.y = canvas.height / 2;
+        ball.dx *= -1;
+      }
+
+      let lastTime = 0;
+      function gameLoop(timestamp) {
+        const deltaTime = (timestamp - lastTime) / 16.666;
+        lastTime = timestamp;
+
+        if (!isPaused) {
+          update(deltaTime);
+          draw();
+        }
+        requestAnimationFrame(gameLoop);
+      }
+
+      function update(deltaTime) {
+        if (player.score >= 3 || computer.score >= 3) {
+          if (!gameOver) {
+            if (player.score >= 3) {
+              playSound(winGameSound);
+            } else {
+              playSound(loseGameSound);
+            }
+            gameOver = true;
+          }
+          return;
+        }
+
+        const playerSpeed = 7;
+        if (upPressed && player.y > 0) {
+          player.y -= playerSpeed * deltaTime;
+        }
+
+        if (downPressed && player.y < canvas.height - player.height) {
+          player.y += playerSpeed * deltaTime;
+        }
+
+        ball.x += ball.dx * deltaTime;
+        ball.y += ball.dy * deltaTime;
+
+        if (ball.y + ball.radius > canvas.height || ball.y - ball.radius < 0) {
+          ball.dy *= -1;
+        }
+
+        if (
+          ball.x - ball.radius < player.x + paddleWidth &&
+          ball.y > player.y &&
+          ball.y < player.y + player.height
+        ) {
+          ball.dx *= -1;
+          playSound(hitSound);
+        }
+
+        if (
+          ball.x + ball.radius > computer.x &&
+          ball.y > computer.y &&
+          ball.y < computer.y + computer.height
+        ) {
+          ball.dx *= -1;
+          playSound(hitSound);
+        }
+
+        // Bilgisayar çubuğu
+        if (Math.random() < hitProbability) {
+          const targetY = ball.y - computer.height / 2;
+          computer.y += (targetY - computer.y) * 0.1 * deltaTime;
+        }
+        if (computer.y < 0) computer.y = 0;
+        if (computer.y + computer.height > canvas.height)
+          computer.y = canvas.height - computer.height;
+
+        if (ball.x < 0) {
+          computer.score++;
+          playSound(scoreSound);
+          resetBall();
+        }
+        if (ball.x > canvas.width) {
+          player.score++;
+          playSound(scoreSound);
+          resetBall();
+        }
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (gameOver) {
+          ctx.font = "50px Arial";
+          ctx.textAlign = "center"; // Metni ortalamak için
+
+          if (player.score >= 3) {
+            ctx.fillStyle = "gold";
+            ctx.fillText(
+              "🏆 SEN KAZANDIN!",
+              canvas.width / 2,
+              canvas.height / 2
+            );
+          } else {
+            ctx.fillStyle = "red";
+            ctx.fillText(
+              "💀 BİLGİSAYAR KAZANDI!",
+              canvas.width / 2,
+              canvas.height / 2
+            );
+          }
+
+          if (player.score >= 3) {
+            for (let i = 0; i < 20; i++) {
+              drawFirework(
+                Math.random() * canvas.width,
+                Math.random() * canvas.height
+              );
+            }
+          }
+          return;
+        }
+
+        drawPaddle(player.x, player.y, player.height);
+        drawPaddle(computer.x, computer.y, computer.height);
+        drawBall();
+        drawScore();
+      }
+
+      requestAnimationFrame(gameLoop);
+    </script>
+  </body>
+</html>
