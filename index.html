@@ -166,6 +166,11 @@
     <audio id="buttonClickSound" src="sounds/tus-sesi.mp3"></audio>
 
     <script>
+      document.querySelectorAll("button").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          playSound(buttonClickSound);
+        });
+      });
       const canvas = document.getElementById("gameCanvas");
       const ctx = canvas.getContext("2d");
 
@@ -312,7 +317,7 @@
       window.addEventListener("load", setupCanvasSize);
       window.addEventListener("resize", setupCanvasSize);
 
-      if (bgMusic) bgMusic.volume = 0.05;
+      if (bgMusic) bgMusic.volume = 0.1;
 
       document.addEventListener("keydown", (e) => {
         if (bgMusic && bgMusic.paused)
