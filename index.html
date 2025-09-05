@@ -102,7 +102,7 @@
     <div>
       <canvas id="gameCanvas"></canvas>
 
-      <div class="button-container">
+      <div id="button-container" class="button-container">
         <button id="restartBtn" class="game-btn">🔄Yeniden Başlat</button>
         <button id="pauseBtn" class="game-btn">⏸️ Duraklat</button>
         <button id="settingsBtn" class="game-btn">⚙️ Ayarlar</button>
@@ -364,6 +364,7 @@
       });
 
       document.getElementById("restartBtn").addEventListener("click", () => {
+        playSound(buttonClickSound);
         document.getElementById("levelMenu").style.display = "flex";
         game.player.score = 0;
         game.computer.score = 0;
@@ -374,6 +375,7 @@
       });
 
       document.getElementById("pauseBtn").addEventListener("click", () => {
+        playSound(buttonClickSound);
         isPaused = !isPaused;
         document.getElementById("pauseBtn").textContent = isPaused
           ? "▶️ Başlat"
@@ -381,6 +383,7 @@
       });
 
       document.getElementById("settingsBtn").addEventListener("click", () => {
+        playSound(buttonClickSound);
         isPaused = true;
         document.getElementById("settingsMenu").style.display = "flex";
       });
@@ -388,6 +391,7 @@
       document
         .getElementById("closeSettingsBtn")
         .addEventListener("click", () => {
+          playSound(buttonClickSound);
           document.getElementById("settingsMenu").style.display = "none";
         });
 
@@ -417,6 +421,7 @@
       });
 
       function startGame(level) {
+        playSound(buttonClickSound);
         difficulty = level;
         document.getElementById("levelMenu").style.display = "none";
         game.player.score = 0;
