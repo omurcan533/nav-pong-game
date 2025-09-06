@@ -24,6 +24,7 @@ const scoreSound = getAudioElement("scoreSound");
 const winGameSound = getAudioElement("winGameSound");
 const loseGameSound = getAudioElement("loseGameSound");
 const bgMusic = getAudioElement("bgMusic");
+const cubukYukarı = getAudioElement("cubuk-yukarı");
 const buttonClickSound = getAudioElement("buttonClickSound");
 
 const ballColorInput = document.getElementById("ballColor");
@@ -82,6 +83,12 @@ function updateAllVolumes() {
   if (bgMusic) {
     bgMusic.volume = Math.max(0, Math.min(1, vol));
     bgMusic.muted = muteAll;
+    // Eğer istersen mute yerine duraklatma yapabilirsin:
+    // if (muteAll) bgMusic.pause(); else bgMusic.play().catch(()=>{});
+  }
+  if (cubukYukarı) {
+    cubukYukarı.volume = Math.max(0, Math.min(1, vol));
+    cubukYukarı.muted = muteAll;
     // Eğer istersen mute yerine duraklatma yapabilirsin:
     // if (muteAll) bgMusic.pause(); else bgMusic.play().catch(()=>{});
   }
@@ -189,10 +196,13 @@ window.addEventListener("load", setupCanvasSize);
 window.addEventListener("resize", setupCanvasSize);
 
 if (bgMusic) bgMusic.volume = 0.06;
+if (cubukYukarı) cubukYukarı.volume = 0.06;
 
 document.addEventListener("keydown", (e) => {
   if (bgMusic && bgMusic.paused)
     bgMusic.play().catch((e) => console.error("Müzik çalınamadı:", e));
+  if (cubukYukarı && cubukYukarı.paused)
+    cubukYukarı.play().catch((e) => console.error("Müzik çalınamadı:", e));
   if (e.key === "ArrowUp") {
     upPressed = true;
   }
@@ -299,8 +309,20 @@ bgThemeSelect.addEventListener("change", (e) => {
 });
 
 musicSelect.addEventListener("change", (e) => {
-  bgMusic.src = `sounds/${e.target.value}`;
-  bgMusic.play().catch((e) => console.error("Müzik çalınamadı:", e));
+  if (bgMusic) {
+    bgMusic.pause(); // Önce eski müziği duraklat
+    bgMusic.currentTime = 0; // Başına sar
+    console.log("target value", e.target.value);
+    bgMusic.src = `sounds/${e.target.value}`; // Yeni müzik kaynağı
+    bgMusic.play().catch((err) => console.error("Müzik çalınamadı:", err));
+  }
+  if (cubukYukarı) {
+    cubukYukarı.pause(); // Önce eski müziği duraklat
+    cubukYukarı.currentTime = 0; // Başına sar
+    console.log("target value", e.target.value);
+    cubukYukarı.src = `sounds/${e.target.value}`; // Yeni müzik kaynağı
+    cubukYukarı.play().catch((err) => console.error("Müzik çalınamadı:", err));
+  }
 });
 
 sfxVolumeInput.addEventListener("input", (e) => {
@@ -321,12 +343,14 @@ function startGame(level) {
   isPaused = false;
   lastPowerUpTime = Date.now();
 
-  if (level === "kolay") hitProbability = 0.3;
+  if (level === "kolay") hitProbability = 0.1;
   else if (level === "orta") hitProbability = 0.5;
   else if (level === "zor") hitProbability = 0.9;
 
   if (bgMusic && bgMusic.paused)
     bgMusic.play().catch((e) => console.error("Müzik çalınamadı:", e));
+  if (cubukYukarı && cubukYukarı.paused)
+    cubukYukarı.play().catch((e) => console.error("Müzik çalınamadı:", e));
 }
 
 function drawPaddle(x, y, height, isFrozen = false) {
@@ -615,6 +639,18 @@ function draw() {
     ctx.textAlign = "center";
 
     if (game.player.score >= 3) {
+      const gradient = ctx.createRadialGradient(
+        canvas.width / 2,
+        canvas.height / 2,
+        50,
+        canvas.width / 2,
+        canvas.height / 2,
+        canvas.width
+      );
+      gradient.addColorStop(0, "rgba(255,215,0,0.7)");
+      gradient.addColorStop(1, "rgba(0,0,0,0.7)");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = "gold";
       ctx.fillText("🏆 SEN KAZANDIN!", canvas.width / 2, canvas.height / 2);
     } else {
