@@ -24,11 +24,16 @@ body {
   .game-container {
     height: 30vh;
     width: 100%; /* istersen genişliği de tam ekran yapabilirsin */
+    margin-bottom: 60px; /* Footer için alan bırak */
+    margin-top: 80px; /* Scoreboard için alan bırak */
   }
   body {
     min-height: 100vh;
+    align-items: flex-start; /* Elemanları üstten başlat */
+    padding-top: 0;
+    padding-bottom: 60px; /* Footer için alan bırak */
   }
-  .controls{
+  .controls {
     flex-direction: column;
   }
 }
@@ -174,20 +179,91 @@ button:focus {
   box-shadow: none;
 }
 
+#scoreboard {
+  display: none;
+}
 
-.footer { 
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  text-align: center;
-  background: rgba(26, 26, 26, 0.9);
-  padding: 10px 0;
-  z-index: 1000;
+@media screen and (max-width: 768px) {
+  #scoreboard {
+    display: flex;
+    position: fixed;
+    top: 10px;
+    left: 0;
+    right: 0;
+    width: 100%;
+    padding: 10px;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 0;
+    font-family: "Michroma", sans-serif;
+    font-weight: bold;
+    z-index: 200;
+    background-color: rgba(26, 26, 26, 0.95);
+    border-bottom: 1px solid #333;
+    box-sizing: border-box;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .user, .pc {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    border: 1px solid #d14646;
+    border-radius: 8px;
+    padding: 5px 5px;
+    margin: 0;
+    background-color: rgba(209, 70, 70, 0.1);
+    font-family: "Michroma", sans-serif;
+    font-weight: bold;
+  }
+
+  .user p, .pc p, .user div, .pc div {
+    margin: 5px 0;
+    font-size: 14px;
+    font-family: "Michroma", sans-serif;
+    font-weight: bold;
+    color: #fff;
+  }
+
+  .user p:last-child, .pc div:last-child {
+    font-size: 18px;
+    color: #d14646;
+    font-weight: bold;
+  }
+}
+
+
+.footer {
+  display: none;
+}
+
+@media screen and (max-width: 768px) {
+  .footer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background-color: rgba(26, 26, 26, 0.95);
+    padding: 10px 0;
+    font-family: "Michroma", sans-serif;
+    font-weight: bold;
+    z-index: 1000;
+    border-top: 1px solid #333;
+  }
 }
 
 .footer p {
   margin: 0;
   font-size: 14px;
   color: #ccc;
+  font-family: "Michroma", sans-serif;
+  font-weight: bold;
 }

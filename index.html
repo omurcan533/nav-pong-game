@@ -10,8 +10,13 @@
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
     <link
       href="https://fonts.googleapis.com/css2?family=Bangers&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Michroma&display=swap"
       rel="stylesheet"
     />
     <!-- <style>
@@ -191,6 +196,16 @@
     <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
+    <div id="scoreboard">
+      <div class="user">
+        <p>User</p>
+        <p id="userScore">0</p>
+      </div>
+      <div class="pc">
+        <p>Computer</p>
+        <div id="computerScore">0</div>
+      </div>
+    </div>
     <div class="game-container">
       <canvas id="gameCanvas"></canvas>
       <div class="controls">
@@ -260,7 +275,9 @@
           <button id="closeSettingsBtn">Kapat</button>
         </div>
       </div>
-
+      <footer class="footer">
+        <p>PONG GAME</p>
+      </footer>
     </div>
 
     <audio id="hitSound" src="sounds/scoreSound.mp3" preload="auto"></audio>
@@ -284,10 +301,6 @@
       src="sounds/tus-sesi.mp3"
       preload="auto"
     ></audio>
-
-    <footer class="footer">
-      <p>PONG GAME</p>
-    </footer>
 
     <!-- <script>
       document.querySelectorAll("button").forEach((btn) => {

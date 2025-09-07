@@ -279,11 +279,23 @@
         settingsBtn.innerHTML = '<i class="fas fa-cog"></i> Ayarlar';
       }
 
+      // Scoreboard update function
+      function updateScoreboard() {
+        const userScoreElement = document.getElementById("userScore");
+        const computerScoreElement = document.getElementById("computerScore");
+        
+        if (userScoreElement && computerScoreElement) {
+          userScoreElement.textContent = game.player.score;
+          computerScoreElement.textContent = game.computer.score;
+        }
+      }
+
       // Event listener
       restartBtn.addEventListener("click", () => {
         document.getElementById("levelMenu").style.display = "flex";
         game.player.score = 0;
         game.computer.score = 0;
+        updateScoreboard(); // Update scoreboard when game restarts
         initializeGameElements();
         gameOver = false;
         isPaused = true;
@@ -346,6 +358,7 @@
         document.getElementById("levelMenu").style.display = "none";
         game.player.score = 0;
         game.computer.score = 0;
+        updateScoreboard(); // Update scoreboard when game starts
         initializeGameElements();
         gameOver = false;
         isPaused = false;
@@ -373,13 +386,19 @@
       }
 
       function drawScore() {
-        ctx.font = `${canvas.height * 0.06}px Arial`;
-        ctx.fillText(game.player.score, canvas.width / 4, canvas.height * 0.1);
-        ctx.fillText(
-          game.computer.score,
-          (3 * canvas.width) / 4,
-          canvas.height * 0.1
-        );
+        // Only draw scores on canvas for desktop (when scoreboard is hidden)
+        if (window.innerWidth > 768) {
+          ctx.font = `${canvas.height * 0.06}px Arial`;
+          ctx.fillStyle = "#fff";
+          ctx.textAlign = "center";
+          ctx.fillText(game.player.score, canvas.width / 4, canvas.height * 0.1);
+          ctx.fillText(
+            game.computer.score,
+            (3 * canvas.width) / 4,
+            canvas.height * 0.1
+          );
+        }
+        // On mobile, scores are handled by external scoreboard
       }
 
       function drawFirework(x, y) {
@@ -661,6 +680,7 @@
           if (ball.x < 0) {
             game.computer.score++;
             playSound(scoreSound);
+            updateScoreboard(); // Update scoreboard when computer scores
             if (balls.length > 1) {
               balls.splice(index, 1);
             } else {
@@ -670,6 +690,7 @@
           if (ball.x > canvas.width) {
             game.player.score++;
             playSound(scoreSound);
+            updateScoreboard(); // Update scoreboard when player scores
             if (balls.length > 1) {
               balls.splice(index, 1);
             } else {
