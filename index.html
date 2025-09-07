@@ -14,7 +14,7 @@
       href="https://fonts.googleapis.com/css2?family=Bangers&display=swap"
       rel="stylesheet"
     />
-    <style>
+    <!-- <style>
       body {
         display: flex;
         justify-content: center;
@@ -187,7 +187,8 @@
         outline: none;
         box-shadow: none;
       }
-    </style>
+    </style> -->
+    <link rel="stylesheet" href="css/style.css" />
   </head>
   <body>
     <div class="game-container">
@@ -259,6 +260,7 @@
           <button id="closeSettingsBtn">Kapat</button>
         </div>
       </div>
+
     </div>
 
     <audio id="hitSound" src="sounds/scoreSound.mp3" preload="auto"></audio>
@@ -283,7 +285,11 @@
       preload="auto"
     ></audio>
 
-    <script>
+    <footer class="footer">
+      <p>PONG GAME</p>
+    </footer>
+
+    <!-- <script>
       document.querySelectorAll("button").forEach((btn) => {
         btn.addEventListener("click", () => {
           playSound(buttonClickSound);
@@ -1034,6 +1040,7 @@
       }
 
       requestAnimationFrame(gameLoop);
-    </script>
+    </script> -->
+    <script src="js/functions.js"></script>
   </body>
 </html>
