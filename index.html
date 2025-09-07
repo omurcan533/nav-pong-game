@@ -241,8 +241,8 @@
             Müzik:
             <select id="musicSelect">
               <option value="none">Müzik Yok</option>
-              <option value="retro-music.mp3">Retro</option>
-              <option value="cubuk-yukari.mp3">cubuk-yukari</option>
+              <option value="backgroundMusic.mp3">Retro NAV</option>
+              <option value="cubuk-yukarı.mp3">Çubuk Yukarı</option>
             </select>
           </label>
           <label>
@@ -489,8 +489,8 @@
       window.addEventListener("load", setupCanvasSize);
       window.addEventListener("resize", setupCanvasSize);
 
-      if (bgMusic) bgMusic.volume = 0.06;
-      if (cubukYukarı) cubukYukarı.volume = 0.06;
+      if (bgMusic) bgMusic.volume = 0.02;
+      if (cubukYukarı) cubukYukarı.volume = 0.02;
 
       document.addEventListener("keydown", (e) => {
         if (bgMusic && bgMusic.paused)
@@ -636,9 +636,9 @@
         isPaused = false;
         lastPowerUpTime = Date.now();
 
-        if (level === "kolay") hitProbability = 0.1;
+        if (level === "kolay") hitProbability = 0.2;
         else if (level === "orta") hitProbability = 0.5;
-        else if (level === "zor") hitProbability = 0.9;
+        else if (level === "zor") hitProbability = 0.8;
 
         if (bgMusic && bgMusic.paused)
           bgMusic.play().catch((e) => console.error("Müzik çalınamadı:", e));
