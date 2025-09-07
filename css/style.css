@@ -1,48 +1,92 @@
 body {
   display: flex;
-  flex-direction: column;
   justify-content: center;
   align-items: center;
-  min-height: 100vh;
-  background: #111;
   margin: 0;
-  overflow: hidden; /* Ekrandaki fazlalık kaydırmayı engelle */
+  background: #1a1a1a;
+  color: #fff;
+  font-family: Arial, sans-serif;
+  flex-direction: column;
+  padding: 20px;
+  overflow: hidden;
 }
+
+.game-container {
+  width: 85%;
+  max-width: none;
+  height: 85vh;
+  padding: 0;
+  margin: 0;
+}
+
+/* Telefon ekranları için */
+@media (max-width: 768px) {
+  .game-container {
+    height: 30vh;
+    width: 100%; /* istersen genişliği de tam ekran yapabilirsin */
+  }
+  body {
+    min-height: 100vh;
+  }
+  .controls{
+    flex-direction: column;
+  }
+}
+
+/* Sadece telefon + yatay mod için */
+@media (max-width: 932px) and (orientation: landscape) {
+  .game-container {
+    height: 74vh; /* menü için alan bırak */
+    width: 100%; /* tam genişlik */
+  }
+}
+
+#levelMenu h1 {
+  font-family: "Bangers", cursive;
+  font-size: 64px;
+  color: #ffcc00;
+  text-shadow: 3px 3px #000;
+  margin-bottom: 20px;
+}
+
+/* Alt yazı */
+#levelMenu p {
+  font-size: 20px;
+  color: #ccc;
+  margin-bottom: 30px;
+}
+
 canvas {
-  background: #000;
-  display: block;
-  border: 2px solid #fff;
-  width: min(800px, 90vw); /* Maksimum 800px veya ekran genişliğinin %90'ı */
-  height: auto;
-  aspect-ratio: 16 / 10; /* 16:10 oranı koru */
-}
-.button-container {
-  text-align: center;
-  margin-top: 20px;
+  background-color: #000;
+  border: 2px solid #555;
+  border-radius: 10px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+  width: 100%;
+  height: 100%;
 }
 
-.game-btn {
+.controls {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 15px;
+}
+
+button {
   background: linear-gradient(135deg, #afaf40, #ac9537);
+  color: #fff;
   border: none;
-  color: white;
-  padding: 12px 25px;
-  margin: 0 10px;
-  font-size: 18px;
-  font-weight: bold;
-  border-radius: 12px;
+  border-radius: 8px;
+  padding: 12px 20px;
+  font-size: 16px;
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  transition: background-color 0.3s, transform 0.2s;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
 }
 
-.game-btn:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 10px rgba(0, 0, 0, 0.4);
-}
-
-.game-btn:active {
-  transform: translateY(1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+button:hover {
+  background-color: #555;
+  transform: translateY(-2px);
 }
 
 .menu-container {
@@ -51,42 +95,99 @@ canvas {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(0, 0, 0, 0.8);
   display: flex;
-  flex-direction: column;
   justify-content: center;
   align-items: center;
-  color: white;
-  font-family: Arial;
-  font-size: 24px;
-  z-index: 10;
+  flex-direction: column;
+  gap: 20px;
+  z-index: 100;
+  backdrop-filter: blur(5px);
+  border-radius: 10px;
+}
+
+.menu-container h2,
+.menu-container h3 {
+  color: #fff;
   text-align: center;
 }
-.menu-container h1 {
-  font-size: 48px;
-  margin-bottom: 20px;
+
+.level-buttons button {
+  background-color: #007bff;
 }
-.menu-container p {
-  font-size: 20px;
-  margin-bottom: 30px;
+
+.level-buttons button:hover {
+  background-color: #0056b3;
 }
-.settings-group {
-  margin-bottom: 25px;
+
+.settings-content {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  background: #333;
+  padding: 30px;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  width: 80%;
+  max-width: 400px;
 }
-.settings-group label,
-.settings-group select,
-.settings-group input {
+
+.settings-content label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
   font-size: 18px;
-  margin: 5px;
 }
-.settings-group input[type="color"] {
-  width: 50px;
-  height: 30px;
-  border: none;
+
+input[type="color"],
+select {
+  border: 1px solid #555;
   border-radius: 5px;
+  padding: 5px;
+  background: #222;
+  color: #fff;
   cursor: pointer;
+}
+
+input[type="range"] {
+  width: 100%;
+  -webkit-appearance: none;
+  background: #555;
+  height: 8px;
+  border-radius: 5px;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  background: #007bff;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+  background: #0056b3;
 }
 button:focus {
   outline: none;
   box-shadow: none;
+}
+
+
+.footer { 
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  background: rgba(26, 26, 26, 0.9);
+  padding: 10px 0;
+  z-index: 1000;
+}
+
+.footer p {
+  margin: 0;
+  font-size: 14px;
+  color: #ccc;
 }
