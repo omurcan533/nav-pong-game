@@ -27,12 +27,15 @@ const loseGameSound = getAudioElement("loseGameSound");
 const bgMusic = getAudioElement("bgMusic");
 const cubukYukarı = getAudioElement("cubuk-yukarı");
 const buttonClickSound = getAudioElement("buttonClickSound");
-
 const ballColorInput = document.getElementById("ballColor");
 const paddleColorInput = document.getElementById("paddleColor");
 const bgThemeSelect = document.getElementById("bgTheme");
 const musicSelect = document.getElementById("musicSelect");
 const sfxVolumeInput = document.getElementById("sfxVolume");
+const pauseBtn = document.getElementById("pauseBtn");
+const restartBtn = document.getElementById("restartBtn");
+const settingsBtn = document.getElementById("settingsBtn");
+const paddleSpeed = 10; // çubuğun hızını ayarla
 
 // Sesleri güvenli bir şekilde oynatan fonksiyon
 const playSound = (audioEl) => {
@@ -117,13 +120,14 @@ let isComputerFrozen = false;
 let balls = [];
 
 // Yıldızlar için dizi
+let blacks = [];
 let stars = [];
 let energyLines = [];
 
 let settings = {
   ballColor: "#ffffff",
   paddleColor: "#ff0000",
-  bgTheme: "stars",
+  bgTheme: "black",
 };
 
 function initializeBackgrounds() {
@@ -131,6 +135,16 @@ function initializeBackgrounds() {
   stars = [];
   for (let i = 0; i < 200; i++) {
     stars.push({
+      x: Math.random() * canvas.clientWidth,
+      y: Math.random() * canvas.clientHeight,
+      radius: Math.random() * 2,
+      speed: Math.random() * 0.5 + 0.1,
+    });
+  }
+  // Siyah oluştur
+  blacks = [];
+  for (let i = 0; i < 200; i++) {
+    blacks.push({
       x: Math.random() * canvas.clientWidth,
       y: Math.random() * canvas.clientHeight,
       radius: Math.random() * 2,
@@ -258,9 +272,51 @@ canvas.addEventListener("touchcancel", (e) => {
   downPressed = false;
 });
 
-const pauseBtn = document.getElementById("pauseBtn");
-const restartBtn = document.getElementById("restartBtn");
-const settingsBtn = document.getElementById("settingsBtn");
+document.getElementById("upBtn").addEventListener("click", () => {
+  if (game.player.y > 0) {
+    game.player.y -= paddleSpeed;
+  }
+});
+
+document.getElementById("downBtn").addEventListener("click", () => {
+  if (game.player.y + game.player.height < canvas.clientHeight) {
+    game.player.y += paddleSpeed;
+  }
+});
+
+function setupHoldButton(btnId, direction) {
+  let interval;
+
+  const start = (e) => {
+    e.preventDefault(); // mobilde kaydırmayı engelle
+    interval = setInterval(() => {
+      if (direction === "up" && game.player.y > 0) {
+        game.player.y -= paddleSpeed;
+      }
+      if (
+        direction === "down" &&
+        game.player.y + game.player.height < canvas.clientHeight
+      ) {
+        game.player.y += paddleSpeed;
+      }
+    }, 30); // hız (ms)
+  };
+
+  const stop = () => clearInterval(interval);
+
+  const btn = document.getElementById(btnId);
+  btn.addEventListener("mousedown", start);
+  btn.addEventListener("touchstart", start);
+
+  btn.addEventListener("mouseup", stop);
+  btn.addEventListener("mouseleave", stop); // fare dışarı çıkarsa dursun
+  btn.addEventListener("touchend", stop);
+  btn.addEventListener("touchcancel", stop);
+}
+
+// Kullanım:
+setupHoldButton("upBtn", "up");
+setupHoldButton("downBtn", "down");
 
 function setPauseIcon(isPaused) {
   // isPaused true ise Başlat, false ise Duraklat
@@ -460,6 +516,18 @@ function drawStarryBackground() {
   });
 }
 
+function drawBlackBackground() {
+  ctx.fillStyle = "black";
+  ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+  ctx.fillStyle = "white";
+  blacks.forEach((black) => {
+    ctx.beginPath();
+    ctx.arc(black.x, black.y, black.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.closePath();
+  });
+}
+
 function drawEnergyBackground() {
   ctx.fillStyle = "black";
   ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
@@ -632,6 +700,16 @@ function update(deltaTime) {
     });
   }
 
+  if (settings.bgTheme === "blacks") {
+    blacks.forEach((black) => {
+      black.x -= black.speed;
+      if (black.x < 0) {
+        black.x = canvas.clientWidth;
+        black.y = Math.random() * canvas.clientHeight;
+      }
+    });
+  }
+
   if (settings.bgTheme === "energy") {
     energyLines.forEach((line) => {
       line.x += Math.cos(line.angle) * line.speed;
@@ -795,5 +873,4 @@ function draw() {
   drawScore();
   drawPowerUp();
 }
-
 requestAnimationFrame(gameLoop);

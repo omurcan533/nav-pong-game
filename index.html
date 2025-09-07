@@ -34,12 +34,18 @@
     </div>
     <div class="game-container">
       <canvas id="gameCanvas"></canvas>
-      <div class="controls">
-        <button id="pauseBtn"><i class="fas fa-pause"></i> Duraklat</button>
-        <button id="restartBtn">
-          <i class="fas fa-redo"></i> Yeniden Başlat
-        </button>
-        <button id="settingsBtn"><i class="fas fa-cog"></i> Ayarlar</button>
+      <div class="controls-container">
+        <div class="controls">
+          <button id="pauseBtn"><i class="fas fa-pause"></i> Duraklat</button>
+          <button id="restartBtn">
+            <i class="fas fa-redo"></i> Yeniden Başlat
+          </button>
+          <button id="settingsBtn"><i class="fas fa-cog"></i> Ayarlar</button>
+        </div>
+        <div id="manuelControl">
+          <button id="upBtn"><i class="fas fa-arrow-up"></i></button>
+          <button id="downBtn"><i class="fas fa-arrow-down"></i></button>
+        </div>
       </div>
       <div class="controls-mobile">
         <p>
@@ -80,7 +86,7 @@
           <label>
             Arka Plan Teması:
             <select id="bgTheme">
-              <option value="none">Normal</option>
+              <option value="black">Siyah</option>
               <option value="stars">Yıldızlar</option>
               <option value="energy">Enerji</option>
             </select>

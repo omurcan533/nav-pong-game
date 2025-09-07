@@ -19,12 +19,17 @@ body {
   margin: 0;
 }
 
+.controls-mobile {
+  display: flex;
+  justify-content: center;
+}
+
 /* Telefon ekranları için */
 @media (max-width: 768px) {
   .game-container {
     height: 30vh;
     width: 100%; /* istersen genişliği de tam ekran yapabilirsin */
-    margin-bottom: 60px; /* Footer için alan bırak */
+    margin-bottom: 100px; /* Footer için alan bırak */
     margin-top: 80px; /* Scoreboard için alan bırak */
   }
   body {
@@ -80,11 +85,35 @@ canvas {
   height: 100%;
 }
 
+.controls-container {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+  margin-top: 15px;
+  pointer-events: auto; /* butonlar tıklanabilir olsun */
+  z-index: 10;
+}
+
 .controls {
   display: flex;
   justify-content: center;
   gap: 15px;
-  margin-top: 15px;
+}
+
+#manuelControl {
+  width: 30%;
+  display: none; /* varsayılan: gizli */
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+}
+
+#manuelControl button {
+  width: 80%;
+  padding: 24px;
+  font-size: 20px;
 }
 
 button {
@@ -211,6 +240,9 @@ button:focus {
     background-color: rgba(26, 26, 26, 0.95);
     border-bottom: 1px solid #333;
     box-sizing: border-box;
+  }
+  #manuelControl {
+    display: flex;
   }
 }
 
