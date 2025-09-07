@@ -28,7 +28,7 @@ body {
     margin-top: 80px; /* Scoreboard için alan bırak */
   }
   body {
-    min-height: 80vh;
+    min-height: 73vh;
     align-items: flex-start; /* Elemanları üstten başlat */
     padding-top: 0;
     padding-bottom: 60px; /* Footer için alan bırak */
@@ -215,7 +215,8 @@ button:focus {
 }
 
 @media screen and (max-width: 768px) {
-  .user, .pc {
+  .user,
+  .pc {
     display: flex;
     flex-direction: column;
     flex: 1;
@@ -232,7 +233,10 @@ button:focus {
     font-weight: bold;
   }
 
-  .user p, .pc p, .user div, .pc div {
+  .user p,
+  .pc p,
+  .user div,
+  .pc div {
     margin: 5px 0;
     font-size: 14px;
     font-family: "Michroma", sans-serif;
@@ -240,13 +244,13 @@ button:focus {
     color: #fff;
   }
 
-  .user p:last-child, .pc div:last-child {
+  .user p:last-child,
+  .pc div:last-child {
     font-size: 18px;
     color: #d14646;
     font-weight: bold;
   }
 }
-
 
 .footer {
   display: none;
@@ -289,11 +293,14 @@ button:focus {
     margin-bottom: 10px;
     padding: 12px 15px;
     border-radius: 12px;
-
   }
 
   .controls-mobile:hover {
-    background: linear-gradient(135deg, rgba(0, 123, 255, 0.2), rgba(0, 123, 255, 0.3));
+    background: linear-gradient(
+      135deg,
+      rgba(0, 123, 255, 0.2),
+      rgba(0, 123, 255, 0.3)
+    );
     transform: translateY(-2px);
     box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
   }

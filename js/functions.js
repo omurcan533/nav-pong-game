@@ -82,13 +82,13 @@ function updateAllVolumes() {
 
   // Arka plan müziği de kapansın istiyorsan burada ayarla (kapatılmasını istedin)
   if (bgMusic) {
-    bgMusic.volume = Math.max(0, Math.min(1, vol));
+    bgMusic.volume = Math.max(0, Math.min(1, vol * 0.2));
     bgMusic.muted = muteAll;
     // Eğer istersen mute yerine duraklatma yapabilirsin:
     // if (muteAll) bgMusic.pause(); else bgMusic.play().catch(()=>{});
   }
   if (cubukYukarı) {
-    cubukYukarı.volume = Math.max(0, Math.min(1, vol));
+    cubukYukarı.volume = Math.max(0, Math.min(1, vol * 0.2));
     cubukYukarı.muted = muteAll;
     // Eğer istersen mute yerine duraklatma yapabilirsin:
     // if (muteAll) bgMusic.pause(); else bgMusic.play().catch(()=>{});
@@ -204,8 +204,8 @@ function setupCanvasSize() {
 window.addEventListener("load", setupCanvasSize);
 window.addEventListener("resize", setupCanvasSize);
 
-if (bgMusic) bgMusic.volume = 0.02;
-if (cubukYukarı) cubukYukarı.volume = 0.02;
+// if (bgMusic) bgMusic.volume = 0.02;
+// if (cubukYukarı) cubukYukarı.volume = 0.02;
 
 document.addEventListener("keydown", (e) => {
   if (bgMusic && bgMusic.paused)
@@ -289,17 +289,32 @@ restartBtn.addEventListener("click", () => {
   setPauseIcon(true);
   setRestartIcon();
   setSettingsIcon();
+  if (isPaused) {
+    bgMusic.pause();
+  } else {
+    bgMusic.play();
+  }
 });
 
 pauseBtn.addEventListener("click", () => {
   isPaused = !isPaused;
   setPauseIcon(isPaused);
+  if (isPaused) {
+    bgMusic.pause();
+  } else {
+    bgMusic.play();
+  }
 });
 
 settingsBtn.addEventListener("click", () => {
   isPaused = true;
   document.getElementById("settingsMenu").style.display = "flex";
   setPauseIcon(true);
+  if (isPaused) {
+    bgMusic.pause();
+  } else {
+    bgMusic.play();
+  }
 });
 
 document.getElementById("closeSettingsBtn").addEventListener("click", () => {
@@ -319,12 +334,26 @@ bgThemeSelect.addEventListener("change", (e) => {
 });
 
 musicSelect.addEventListener("change", (e) => {
+  const selected = e.target.value;
   if (bgMusic) {
-    bgMusic.pause(); // Önce eski müziği duraklat
-    bgMusic.currentTime = 0; // Başına sar
-    bgMusic.src = `sounds/${e.target.value}`; // Yeni müzik kaynağı
-    bgMusic.play().catch((err) => console.error("Müzik çalınamadı:", err));
+    bgMusic.pause();
+    bgMusic.currentTime = 0;
+    bgMusic.src = selected === "none" ? "" : `sounds/${selected}`;
+    if (selected !== "none") {
+      bgMusic
+        .play()
+        .then(() => {
+          // Seçilen müzik çalarken volume'u slider ile senkronize et
+          const vol = parseFloat(sfxVolumeInput.value || 0.5);
+          bgMusic.volume = Math.max(0, Math.min(1, vol * 0.2));
+          bgMusic.muted = vol <= 0;
+        })
+        .catch((err) => console.error("Müzik çalınamadı:", err));
+    }
   }
+
+  // Seçim sonrası tüm sesleri güncelle
+  updateAllVolumes();
 });
 
 sfxVolumeInput.addEventListener("input", (e) => {
@@ -339,7 +368,7 @@ sfxVolumeInput.addEventListener("input", (e) => {
 function updateScoreboard() {
   const userScoreElement = document.getElementById("userScore");
   const computerScoreElement = document.getElementById("computerScore");
-  
+
   if (userScoreElement && computerScoreElement) {
     userScoreElement.textContent = game.player.score;
     computerScoreElement.textContent = game.computer.score;
@@ -386,7 +415,11 @@ function drawScore() {
     ctx.font = `${canvas.clientHeight * 0.06}px Arial`;
     ctx.fillStyle = "#fff";
     ctx.textAlign = "center";
-    ctx.fillText(game.player.score, canvas.clientWidth / 4, canvas.clientHeight * 0.1);
+    ctx.fillText(
+      game.player.score,
+      canvas.clientWidth / 4,
+      canvas.clientHeight * 0.1
+    );
     ctx.fillText(
       game.computer.score,
       (3 * canvas.clientWidth) / 4,
@@ -488,7 +521,7 @@ function applyPowerUpEffect() {
       game.player.height = game.player.height * 1.5;
       setTimeout(() => {
         game.player.height = game.player.originalHeight;
-      }, 5000);
+      }, 10000);
       break;
     case "freezeOpponent":
       isComputerFrozen = true;
