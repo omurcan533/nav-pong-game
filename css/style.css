@@ -28,13 +28,23 @@ body {
     margin-top: 80px; /* Scoreboard için alan bırak */
   }
   body {
-    min-height: 100vh;
+    min-height: 80vh;
     align-items: flex-start; /* Elemanları üstten başlat */
     padding-top: 0;
     padding-bottom: 60px; /* Footer için alan bırak */
   }
   .controls {
     flex-direction: column;
+  }
+  .controls-mobile {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 14px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    padding: 5px 5px;
+    border-radius: 8px;
   }
 }
 
@@ -266,4 +276,25 @@ button:focus {
   color: #ccc;
   font-family: "Michroma", sans-serif;
   font-weight: bold;
+}
+
+@media screen and (max-width: 768px) {
+  .controls-mobile {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    font-size: 14px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    padding: 12px 15px;
+    border-radius: 12px;
+
+  }
+
+  .controls-mobile:hover {
+    background: linear-gradient(135deg, rgba(0, 123, 255, 0.2), rgba(0, 123, 255, 0.3));
+    transform: translateY(-2px);
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+  }
 }
