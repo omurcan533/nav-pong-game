@@ -4,9 +4,6 @@ document.querySelectorAll("button").forEach((btn) => {
   });
 });
 
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
-
 // Ses elemanlarını güvenli bir şekilde al ve hata yakalama ekle
 const getAudioElement = (id) => {
   const audioEl = document.getElementById(id);
@@ -20,12 +17,15 @@ const getAudioElement = (id) => {
   return audioEl;
 };
 
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
 const hitSound = getAudioElement("hitSound");
 const scoreSound = getAudioElement("scoreSound");
 const winGameSound = getAudioElement("winGameSound");
 const loseGameSound = getAudioElement("loseGameSound");
-const bgMusic = getAudioElement("bgMusic");
-const cubukYukarı = getAudioElement("cubuk-yukarı");
+const cupSoundNav = getAudioElement("cupSoundNav");
+const bgMusics = getAudioElement("bgMusics");
+const cubukAsagi = getAudioElement("cubuk-asagi");
 const buttonClickSound = getAudioElement("buttonClickSound");
 const ballColorInput = document.getElementById("ballColor");
 const paddleColorInput = document.getElementById("paddleColor");
@@ -84,17 +84,13 @@ function updateAllVolumes() {
   );
 
   // Arka plan müziği de kapansın istiyorsan burada ayarla (kapatılmasını istedin)
-  if (bgMusic) {
-    bgMusic.volume = Math.max(0, Math.min(1, vol * 0.2));
-    bgMusic.muted = muteAll;
-    // Eğer istersen mute yerine duraklatma yapabilirsin:
-    // if (muteAll) bgMusic.pause(); else bgMusic.play().catch(()=>{});
+  if (cupSoundNav) {
+    cupSoundNav.volume = Math.max(0, Math.min(1, vol * 0.2));
+    cupSoundNav.muted = muteAll;
   }
-  if (cubukYukarı) {
-    cubukYukarı.volume = Math.max(0, Math.min(1, vol * 0.2));
-    cubukYukarı.muted = muteAll;
-    // Eğer istersen mute yerine duraklatma yapabilirsin:
-    // if (muteAll) bgMusic.pause(); else bgMusic.play().catch(()=>{});
+  if (bgMusics) {
+    bgMusics.volume = Math.max(0, Math.min(1, vol * 0.2));
+    bgMusics.muted = muteAll;
   }
 }
 
@@ -218,14 +214,11 @@ function setupCanvasSize() {
 window.addEventListener("load", setupCanvasSize);
 window.addEventListener("resize", setupCanvasSize);
 
-// if (bgMusic) bgMusic.volume = 0.02;
-// if (cubukYukarı) cubukYukarı.volume = 0.02;
-
 document.addEventListener("keydown", (e) => {
-  if (bgMusic && bgMusic.paused)
-    bgMusic.play().catch((e) => console.error("Müzik çalınamadı:", e));
-  if (cubukYukarı && cubukYukarı.paused)
-    cubukYukarı.play().catch((e) => console.error("Müzik çalınamadı:", e));
+  if (cupSoundNav && cupSoundNav.paused)
+    cupSoundNav.play().catch((e) => console.error("Müzik çalınamadı:", e));
+  if (bgMusics && bgMusics.paused)
+    bgMusics.play().catch((e) => console.error("Müzik çalınamadı:", e));
   if (e.key === "ArrowUp") {
     upPressed = true;
   }
@@ -346,9 +339,9 @@ restartBtn.addEventListener("click", () => {
   setRestartIcon();
   setSettingsIcon();
   if (isPaused) {
-    bgMusic.pause();
+    cupSoundNav.pause();
   } else {
-    bgMusic.play();
+    cupSoundNav.play();
   }
 });
 
@@ -356,9 +349,9 @@ pauseBtn.addEventListener("click", () => {
   isPaused = !isPaused;
   setPauseIcon(isPaused);
   if (isPaused) {
-    bgMusic.pause();
+    cupSoundNav.pause();
   } else {
-    bgMusic.play();
+    cupSoundNav.play();
   }
 });
 
@@ -367,9 +360,9 @@ settingsBtn.addEventListener("click", () => {
   document.getElementById("settingsMenu").style.display = "flex";
   setPauseIcon(true);
   if (isPaused) {
-    bgMusic.pause();
+    cupSoundNav.pause();
   } else {
-    bgMusic.play();
+    cupSoundNav.play();
   }
 });
 
@@ -391,18 +384,18 @@ bgThemeSelect.addEventListener("change", (e) => {
 
 musicSelect.addEventListener("change", (e) => {
   const selected = e.target.value;
-  if (bgMusic) {
-    bgMusic.pause();
-    bgMusic.currentTime = 0;
-    bgMusic.src = selected === "none" ? "" : `sounds/${selected}`;
+  if (cupSoundNav) {
+    cupSoundNav.pause();
+    cupSoundNav.currentTime = 0;
+    cupSoundNav.src = selected === "none" ? "" : `sounds/${selected}`;
     if (selected !== "none") {
-      bgMusic
+      cupSoundNav
         .play()
         .then(() => {
           // Seçilen müzik çalarken volume'u slider ile senkronize et
           const vol = parseFloat(sfxVolumeInput.value || 0.5);
-          bgMusic.volume = Math.max(0, Math.min(1, vol * 0.2));
-          bgMusic.muted = vol <= 0;
+          cupSoundNav.volume = Math.max(0, Math.min(1, vol * 0.2));
+          cupSoundNav.muted = vol <= 0;
         })
         .catch((err) => console.error("Müzik çalınamadı:", err));
     }
@@ -411,13 +404,29 @@ musicSelect.addEventListener("change", (e) => {
   // Seçim sonrası tüm sesleri güncelle
   updateAllVolumes();
 });
-
+let lastVolumeValue = parseFloat(sfxVolumeInput.value || 0);
 sfxVolumeInput.addEventListener("input", (e) => {
   if (hitSound) hitSound.volume = e.target.value;
   if (scoreSound) scoreSound.volume = e.target.value;
   if (winGameSound) winGameSound.volume = e.target.value;
   if (loseGameSound) loseGameSound.volume = e.target.value;
   if (buttonClickSound) buttonClickSound.volume = e.target.value;
+
+  updateAllVolumes();
+
+  const currentValue = parseFloat(sfxVolumeInput.value || 0);
+
+  if (currentValue > lastVolumeValue) {
+    console.log("ses yükseldi");
+    // Ses yükseltildi
+    playSound(buttonClickSound);
+  } else if (currentValue < lastVolumeValue) {
+    console.log("ses kısıldı.");
+    // Ses kısıldı
+    playSound(buttonClickSound);
+  }
+
+  lastVolumeValue = currentValue; // güncelle
 });
 
 // Global updateScoreboard function
@@ -447,8 +456,8 @@ function startGame(level) {
   else if (level === "orta") hitProbability = 0.5;
   else if (level === "zor") hitProbability = 0.8;
 
-  if (bgMusic && bgMusic.paused)
-    bgMusic.play().catch((e) => console.error("Müzik çalınamadı:", e));
+  if (cupSoundNav && cupSoundNav.paused)
+    cupSoundNav.play().catch((e) => console.error("Müzik çalınamadı:", e));
 }
 
 function drawPaddle(x, y, height, isFrozen = false) {
