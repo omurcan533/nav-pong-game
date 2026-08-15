@@ -1,32 +1,121 @@
-document.querySelectorAll("button").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    playSound(buttonClickSound);
-  });
-});
-
-// Ses elemanlarını güvenli bir şekilde al ve hata yakalama ekle
-const getAudioElement = (id) => {
-  const audioEl = document.getElementById(id);
-  if (!audioEl) {
-    console.error(`Hata: ID "${id}" olan ses elemanı bulunamadı.`);
-    return null;
+// --- SES MOTORU (Web Audio API & HTML5 Audio Fallback) ---
+class SoundEngine {
+  constructor() {
+    this.ctx = null;
+    this.buffers = {};
+    this.bgAudio = new Audio();
+    this.bgAudio.loop = true;
+    this.volume = 0.5;
+    this.soundFiles = {
+      hit: "sounds/scoreSound.mp3",
+      score: "sounds/myGoal.mp3",
+      pcGoal: "sounds/pcGoal.mp3",
+      win: "sounds/galibiyet.mp3",
+      lose: "sounds/yenilgi.mp3",
+      button: "sounds/tus-sesi.mp3",
+    };
+    this.initAudioContext();
   }
-  audioEl.addEventListener("error", (e) => {
-    console.error(`Ses yükleme hatası: ID "${id}", SRC: "${audioEl.src}"`, e);
-  });
-  return audioEl;
-};
 
+  initAudioContext() {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) {
+        this.ctx = new AudioCtx();
+        this.loadAllSounds();
+      }
+    } catch (e) {
+      console.warn("Web Audio API başlatılamadı, varsayılan sesler kullanılacak.", e);
+    }
+  }
+
+  ensureContext() {
+    if (this.ctx && this.ctx.state === "suspended") {
+      this.ctx.resume().catch(() => {});
+    }
+  }
+
+  async loadSound(name, url) {
+    if (!this.ctx) return;
+    try {
+      const response = await fetch(url);
+      const arrayBuffer = await response.arrayBuffer();
+      const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer);
+      this.buffers[name] = audioBuffer;
+    } catch (e) {
+      console.warn(`Ses önbelleğe alınamadı (${name}):`, e);
+    }
+  }
+
+  loadAllSounds() {
+    for (const [name, url] of Object.entries(this.soundFiles)) {
+      this.loadSound(name, url);
+    }
+  }
+
+  play(name) {
+    if (this.volume <= 0) return;
+    this.ensureContext();
+
+    if (this.ctx && this.buffers[name]) {
+      try {
+        const source = this.ctx.createBufferSource();
+        const gainNode = this.ctx.createGain();
+        source.buffer = this.buffers[name];
+        gainNode.gain.value = this.volume;
+        source.connect(gainNode);
+        gainNode.connect(this.ctx.destination);
+        source.start(0);
+        return;
+      } catch (e) {
+        console.error("Web Audio ses çalma hatası:", e);
+      }
+    }
+
+    // Web Audio hazır değilse HTML5 Audio fallback kullan
+    if (this.soundFiles[name]) {
+      const fallback = new Audio(this.soundFiles[name]);
+      fallback.volume = this.volume;
+      fallback.play().catch(() => {});
+    }
+  }
+
+  playMusic(filename) {
+    if (!filename || filename === "none") {
+      this.bgAudio.pause();
+      this.bgAudio.src = "";
+      return;
+    }
+    const path = `sounds/${filename}`;
+    if (!this.bgAudio.src.endsWith(path)) {
+      this.bgAudio.src = path;
+    }
+    this.bgAudio.volume = Math.max(0, Math.min(1, this.volume * 0.3));
+    this.bgAudio.play().catch((e) => console.log("Müzik çalınamadı:", e));
+  }
+
+  pauseMusic() {
+    this.bgAudio.pause();
+  }
+
+  resumeMusic() {
+    if (this.bgAudio.src && !this.bgAudio.src.endsWith("none") && this.bgAudio.paused) {
+      this.bgAudio.play().catch(() => {});
+    }
+  }
+
+  setVolume(vol) {
+    this.volume = Math.max(0, Math.min(1, vol));
+    this.bgAudio.volume = Math.max(0, Math.min(1, this.volume * 0.3));
+  }
+}
+
+const sounds = new SoundEngine();
+
+// OYUN ELEMENTLERİ & DOM
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
-const hitSound = getAudioElement("hitSound");
-const scoreSound = getAudioElement("scoreSound");
-const winGameSound = getAudioElement("winGameSound");
-const loseGameSound = getAudioElement("loseGameSound");
-const cupSoundNav = getAudioElement("cupSoundNav");
-const bgMusics = getAudioElement("bgMusics");
-const cubukAsagi = getAudioElement("cubuk-asagi");
-const buttonClickSound = getAudioElement("buttonClickSound");
+
 const ballColorInput = document.getElementById("ballColor");
 const paddleColorInput = document.getElementById("paddleColor");
 const bgThemeSelect = document.getElementById("bgTheme");
@@ -35,90 +124,24 @@ const sfxVolumeInput = document.getElementById("sfxVolume");
 const pauseBtn = document.getElementById("pauseBtn");
 const restartBtn = document.getElementById("restartBtn");
 const settingsBtn = document.getElementById("settingsBtn");
-const paddleSpeed = 10; // çubuğun hızını ayarla
 
-// Sesleri güvenli bir şekilde oynatan fonksiyon
-const playSound = (audioEl) => {
-  if (!audioEl) return;
-  try {
-    // slider değeri ile ses seviyesini güncelle (her zaman güncel olsun)
-    const vol = parseFloat(sfxVolumeInput.value || 0);
-    const shouldMute = vol <= 0;
-
-    // orijinal elementin volume ve mute durumunu ayarla
-    audioEl.volume = Math.max(0, Math.min(1, vol));
-    audioEl.muted = shouldMute;
-
-    // klonla, klona volume/muted ata ve çal
-    const clone = audioEl.cloneNode(true);
-    clone.volume = audioEl.volume;
-    clone.muted = audioEl.muted;
-
-    // bazı tarayıcılarda görünmez olursa sorun olabiliyor; DOM'a ekleyip bittiğinde temizleyelim
-    clone.addEventListener("ended", () => {
-      if (clone.parentNode) clone.parentNode.removeChild(clone);
-    });
-
-    // ekle ve çal
-    document.body.appendChild(clone);
-    clone.play().catch((e) => {
-      // autoplay veya izin sorunları olabilir, hata kaydı yeterli
-      console.error("Ses çalınamadı (clone):", e);
-    });
-  } catch (e) {
-    console.error("Ses çalma hatası:", e);
-  }
-};
-
-function updateAllVolumes() {
-  const vol = parseFloat(sfxVolumeInput.value || 0);
-  const muteAll = vol <= 0;
-
-  // Efekt sesleri ve buton sesi
-  [hitSound, scoreSound, winGameSound, loseGameSound, buttonClickSound].forEach(
-    (a) => {
-      if (!a) return;
-      a.volume = Math.max(0, Math.min(1, vol));
-      a.muted = muteAll;
-    }
-  );
-
-  // Arka plan müziği de kapansın istiyorsan burada ayarla (kapatılmasını istedin)
-  if (cupSoundNav) {
-    cupSoundNav.volume = Math.max(0, Math.min(1, vol * 0.2));
-    cupSoundNav.muted = muteAll;
-  }
-  if (bgMusics) {
-    bgMusics.volume = Math.max(0, Math.min(1, vol * 0.2));
-    bgMusics.muted = muteAll;
-  }
-}
-
-// slider değiştiğinde ve başlangıçta çağır
-sfxVolumeInput.addEventListener("input", updateAllVolumes);
-updateAllVolumes();
-
-var gameOver = false;
-var isPaused = true;
-let upPressed = false,
-  downPressed = false;
+const paddleSpeed = 8;
+let gameOver = false;
+let isPaused = true;
+let upPressed = false, downPressed = false;
 let difficulty = "orta";
-let hitProbability = 1;
 
-// Oyun değişkenleri
-const game = {};
-const POWERUP_SPAWN_INTERVAL = 10000; // 10 saniye
+const game = { initialized: false };
+const POWERUP_SPAWN_INTERVAL = 10000;
 let lastPowerUpTime = 0;
 let powerup = null;
 let isComputerFrozen = false;
 
-// Topları birden fazla top için bir diziye dönüştür
 let balls = [];
-
-// Yıldızlar için dizi
-let blacks = [];
 let stars = [];
+let blacks = [];
 let energyLines = [];
+let fireworks = [];
 
 let settings = {
   ballColor: "#ffffff",
@@ -126,34 +149,42 @@ let settings = {
   bgTheme: "black",
 };
 
+// BUTON TIKLAMA SESLERİ
+document.querySelectorAll("button").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    sounds.ensureContext();
+    sounds.play("button");
+  });
+});
+
+// ARKA PLAN RESİMLERİ VE EFEKTLERİ
 function initializeBackgrounds() {
-  // Yıldızları oluştur
   stars = [];
-  for (let i = 0; i < 200; i++) {
+  for (let i = 0; i < 150; i++) {
     stars.push({
       x: Math.random() * canvas.clientWidth,
       y: Math.random() * canvas.clientHeight,
-      radius: Math.random() * 2,
+      radius: Math.random() * 2 + 0.5,
       speed: Math.random() * 0.5 + 0.1,
     });
   }
-  // Siyah oluştur
+
   blacks = [];
-  for (let i = 0; i < 200; i++) {
+  for (let i = 0; i < 150; i++) {
     blacks.push({
       x: Math.random() * canvas.clientWidth,
       y: Math.random() * canvas.clientHeight,
-      radius: Math.random() * 2,
+      radius: Math.random() * 2 + 0.5,
       speed: Math.random() * 0.5 + 0.1,
     });
   }
-  // Enerji hatlarını oluştur
+
   energyLines = [];
-  for (let i = 0; i < 50; i++) {
+  for (let i = 0; i < 40; i++) {
     energyLines.push({
       x: Math.random() * canvas.clientWidth,
       y: Math.random() * canvas.clientHeight,
-      length: Math.random() * 50 + 20,
+      length: Math.random() * 40 + 20,
       angle: Math.random() * Math.PI * 2,
       speed: Math.random() * 0.5 + 0.2,
     });
@@ -167,17 +198,21 @@ function initializeGameElements() {
   game.paddleWidth = canvasWidth * 0.0125;
   game.playerHeight = canvasHeight * 0.22;
   game.computerHeight = canvasHeight * 0.22;
+
   game.player = {
     x: canvasWidth * 0.025,
     y: canvasHeight / 2 - game.playerHeight / 2,
     score: 0,
     height: game.playerHeight,
+    originalHeight: game.playerHeight,
   };
+
   game.computer = {
     x: canvasWidth - (canvasWidth * 0.025 + game.paddleWidth),
     y: canvasHeight / 2 - game.computerHeight / 2,
     score: 0,
     height: game.computerHeight,
+    originalHeight: game.computerHeight,
   };
 
   balls = [
@@ -191,167 +226,172 @@ function initializeGameElements() {
     },
   ];
 
-  game.player.originalHeight = game.playerHeight;
-  game.computer.originalHeight = game.computerHeight;
-
   initializeBackgrounds();
 }
 
 function setupCanvasSize() {
   const scale = window.devicePixelRatio || 1;
+  const newWidth = canvas.clientWidth;
+  const newHeight = canvas.clientHeight;
 
-  // Canvas gerçek çözünürlük
-  canvas.width = canvas.clientWidth * scale;
-  canvas.height = canvas.clientHeight * scale;
+  canvas.width = newWidth * scale;
+  canvas.height = newHeight * scale;
 
-  // Çizim koordinatlarını CSS boyutuna uydur
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.scale(scale, scale);
 
-  initializeGameElements();
+  if (!game.initialized) {
+    initializeGameElements();
+    game.initialized = true;
+  } else {
+    // Boyut değiştiğinde mevcut oyunu sıfırlamadan oranla
+    const widthRatio = newWidth / (game.lastCanvasWidth || newWidth);
+    const heightRatio = newHeight / (game.lastCanvasHeight || newHeight);
+
+    game.paddleWidth = newWidth * 0.0125;
+    game.playerHeight = newHeight * 0.22;
+    game.computerHeight = newHeight * 0.22;
+
+    game.player.height = game.playerHeight;
+    game.computer.height = game.computerHeight;
+    game.player.x = newWidth * 0.025;
+    game.computer.x = newWidth - (newWidth * 0.025 + game.paddleWidth);
+
+    game.player.y = Math.min(newHeight - game.player.height, game.player.y * heightRatio);
+    game.computer.y = Math.min(newHeight - game.computer.height, game.computer.y * heightRatio);
+
+    balls.forEach((ball) => {
+      ball.x *= widthRatio;
+      ball.y *= heightRatio;
+      ball.radius = newWidth * 0.01;
+      ball.baseSpeed = (newWidth / 800) * 5;
+    });
+
+    initializeBackgrounds();
+  }
+
+  game.lastCanvasWidth = newWidth;
+  game.lastCanvasHeight = newHeight;
 }
 
 window.addEventListener("load", setupCanvasSize);
 window.addEventListener("resize", setupCanvasSize);
 
+// KLAVYE VE DOKUNMATİK KONTROLLER
 document.addEventListener("keydown", (e) => {
-  if (cupSoundNav && cupSoundNav.paused)
-    cupSoundNav.play().catch((e) => console.error("Müzik çalınamadı:", e));
-  if (bgMusics && bgMusics.paused)
-    bgMusics.play().catch((e) => console.error("Müzik çalınamadı:", e));
-  if (e.key === "ArrowUp") {
+  sounds.ensureContext();
+  if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") {
     upPressed = true;
   }
-  if (e.key === "ArrowDown") {
+  if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") {
     downPressed = true;
   }
 });
 
 document.addEventListener("keyup", (e) => {
-  if (e.key === "ArrowUp") {
+  if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") {
     upPressed = false;
   }
-  if (e.key === "ArrowDown") {
+  if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") {
     downPressed = false;
   }
 });
 
+// Fare ve Dokunmatik Sürükleme Kontrolü
+canvas.addEventListener("mousemove", (e) => {
+  if (isPaused || gameOver) return;
+  const rect = canvas.getBoundingClientRect();
+  const mouseY = e.clientY - rect.top;
+  game.player.y = Math.max(
+    0,
+    Math.min(canvas.clientHeight - game.player.height, mouseY - game.player.height / 2)
+  );
+});
+
+canvas.addEventListener("touchmove", (e) => {
+  if (isPaused || gameOver) return;
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const touchY = e.touches[0].clientY - rect.top;
+  game.player.y = Math.max(
+    0,
+    Math.min(canvas.clientHeight - game.player.height, touchY - game.player.height / 2)
+  );
+}, { passive: false });
+
 canvas.addEventListener("touchstart", (e) => {
-  e.preventDefault();
-  const touchY = e.touches[0].clientY;
-  const canvasRect = canvas.getBoundingClientRect();
-
-  if (touchY >= canvasRect.top && touchY <= canvasRect.bottom) {
-    const relativeY = touchY - canvasRect.top;
-    if (relativeY < canvas.clientHeight / 2) {
-      upPressed = true;
-      downPressed = false;
-    } else {
-      downPressed = true;
-      upPressed = false;
-    }
+  sounds.ensureContext();
+  const rect = canvas.getBoundingClientRect();
+  const touchY = e.touches[0].clientY - rect.top;
+  if (touchY < canvas.clientHeight / 2) {
+    upPressed = true;
+    downPressed = false;
+  } else {
+    downPressed = true;
+    upPressed = false;
   }
 });
 
-canvas.addEventListener("touchend", (e) => {
-  e.preventDefault();
+canvas.addEventListener("touchend", () => {
   upPressed = false;
   downPressed = false;
 });
 
-canvas.addEventListener("touchcancel", (e) => {
-  e.preventDefault();
-  upPressed = false;
-  downPressed = false;
-});
-
-document.getElementById("upBtn").addEventListener("click", () => {
-  if (game.player.y > 0) {
-    game.player.y -= paddleSpeed;
-  }
-});
-
-document.getElementById("downBtn").addEventListener("click", () => {
-  if (game.player.y + game.player.height < canvas.clientHeight) {
-    game.player.y += paddleSpeed;
-  }
-});
-
-function setupHoldButton(btnId, direction) {
-  let interval;
+// MANUEL BUTONLARİ İÇİN SMOOTH KONTROL (setInterval yerine event flag)
+function bindHoldButton(id, direction) {
+  const btn = document.getElementById(id);
+  if (!btn) return;
 
   const start = (e) => {
-    e.preventDefault(); // mobilde kaydırmayı engelle
-    interval = setInterval(() => {
-      if (direction === "up" && game.player.y > 0) {
-        game.player.y -= paddleSpeed;
-      }
-      if (
-        direction === "down" &&
-        game.player.y + game.player.height < canvas.clientHeight
-      ) {
-        game.player.y += paddleSpeed;
-      }
-    }, 30); // hız (ms)
+    e.preventDefault();
+    sounds.ensureContext();
+    if (direction === "up") upPressed = true;
+    if (direction === "down") downPressed = true;
   };
 
-  const stop = () => clearInterval(interval);
+  const stop = () => {
+    if (direction === "up") upPressed = false;
+    if (direction === "down") downPressed = false;
+  };
 
-  const btn = document.getElementById(btnId);
   btn.addEventListener("mousedown", start);
   btn.addEventListener("touchstart", start);
-
   btn.addEventListener("mouseup", stop);
-  btn.addEventListener("mouseleave", stop); // fare dışarı çıkarsa dursun
+  btn.addEventListener("mouseleave", stop);
   btn.addEventListener("touchend", stop);
   btn.addEventListener("touchcancel", stop);
 }
 
-// Kullanım:
-setupHoldButton("upBtn", "up");
-setupHoldButton("downBtn", "down");
+bindHoldButton("upBtn", "up");
+bindHoldButton("downBtn", "down");
 
-function setPauseIcon(isPaused) {
-  // isPaused true ise Başlat, false ise Duraklat
-  pauseBtn.innerHTML = isPaused
+// AYARLAR VE BUTONLAR
+function setPauseIcon(paused) {
+  pauseBtn.innerHTML = paused
     ? '<i class="fas fa-play"></i> Başlat'
     : '<i class="fas fa-pause"></i> Duraklat';
 }
 
-function setRestartIcon() {
-  restartBtn.innerHTML = '<i class="fas fa-redo"></i> Yeniden Başlat';
-}
-
-function setSettingsIcon() {
-  settingsBtn.innerHTML = '<i class="fas fa-cog"></i> Ayarlar';
-}
-
-// Event listener
 restartBtn.addEventListener("click", () => {
   document.getElementById("levelMenu").style.display = "flex";
   game.player.score = 0;
   game.computer.score = 0;
-  updateScoreboard(); // Update scoreboard when game restarts
+  updateScoreboard();
   initializeGameElements();
   gameOver = false;
   isPaused = true;
+  fireworks = [];
   setPauseIcon(true);
-  setRestartIcon();
-  setSettingsIcon();
-  if (isPaused) {
-    cupSoundNav.pause();
-  } else {
-    cupSoundNav.play();
-  }
+  sounds.pauseMusic();
 });
 
 pauseBtn.addEventListener("click", () => {
   isPaused = !isPaused;
   setPauseIcon(isPaused);
   if (isPaused) {
-    cupSoundNav.pause();
+    sounds.pauseMusic();
   } else {
-    cupSoundNav.play();
+    sounds.resumeMusic();
   }
 });
 
@@ -359,11 +399,7 @@ settingsBtn.addEventListener("click", () => {
   isPaused = true;
   document.getElementById("settingsMenu").style.display = "flex";
   setPauseIcon(true);
-  if (isPaused) {
-    cupSoundNav.pause();
-  } else {
-    cupSoundNav.play();
-  }
+  sounds.pauseMusic();
 });
 
 document.getElementById("closeSettingsBtn").addEventListener("click", () => {
@@ -383,53 +419,17 @@ bgThemeSelect.addEventListener("change", (e) => {
 });
 
 musicSelect.addEventListener("change", (e) => {
-  const selected = e.target.value;
-  if (cupSoundNav) {
-    cupSoundNav.pause();
-    cupSoundNav.currentTime = 0;
-    cupSoundNav.src = selected === "none" ? "" : `sounds/${selected}`;
-    if (selected !== "none") {
-      cupSoundNav
-        .play()
-        .then(() => {
-          // Seçilen müzik çalarken volume'u slider ile senkronize et
-          const vol = parseFloat(sfxVolumeInput.value || 0.5);
-          cupSoundNav.volume = Math.max(0, Math.min(1, vol * 0.2));
-          cupSoundNav.muted = vol <= 0;
-        })
-        .catch((err) => console.error("Müzik çalınamadı:", err));
-    }
-  }
-
-  // Seçim sonrası tüm sesleri güncelle
-  updateAllVolumes();
+  sounds.playMusic(e.target.value);
 });
-let lastVolumeValue = parseFloat(sfxVolumeInput.value || 0);
+
 sfxVolumeInput.addEventListener("input", (e) => {
-  if (hitSound) hitSound.volume = e.target.value;
-  if (scoreSound) scoreSound.volume = e.target.value;
-  if (winGameSound) winGameSound.volume = e.target.value;
-  if (loseGameSound) loseGameSound.volume = e.target.value;
-  if (buttonClickSound) buttonClickSound.volume = e.target.value;
-
-  updateAllVolumes();
-
-  const currentValue = parseFloat(sfxVolumeInput.value || 0);
-
-  if (currentValue > lastVolumeValue) {
-    console.log("ses yükseldi");
-    // Ses yükseltildi
-    playSound(buttonClickSound);
-  } else if (currentValue < lastVolumeValue) {
-    console.log("ses kısıldı.");
-    // Ses kısıldı
-    playSound(buttonClickSound);
-  }
-
-  lastVolumeValue = currentValue; // güncelle
+  sounds.setVolume(parseFloat(e.target.value || 0));
 });
 
-// Global updateScoreboard function
+sfxVolumeInput.addEventListener("change", () => {
+  sounds.play("button");
+});
+
 function updateScoreboard() {
   const userScoreElement = document.getElementById("userScore");
   const computerScoreElement = document.getElementById("computerScore");
@@ -441,27 +441,28 @@ function updateScoreboard() {
 }
 
 function startGame(level) {
+  sounds.ensureContext();
   setPauseIcon(false);
   difficulty = level;
   document.getElementById("levelMenu").style.display = "none";
   game.player.score = 0;
   game.computer.score = 0;
-  updateScoreboard(); // Update scoreboard when game starts
+  updateScoreboard();
   initializeGameElements();
   gameOver = false;
   isPaused = false;
+  fireworks = [];
   lastPowerUpTime = Date.now();
 
-  if (level === "kolay") hitProbability = 0.2;
-  else if (level === "orta") hitProbability = 0.5;
-  else if (level === "zor") hitProbability = 0.8;
-
-  if (cupSoundNav && cupSoundNav.paused)
-    cupSoundNav.play().catch((e) => console.error("Müzik çalınamadı:", e));
+  const selectedMusic = musicSelect.value;
+  if (selectedMusic && selectedMusic !== "none") {
+    sounds.playMusic(selectedMusic);
+  }
 }
 
+// ÇİZİM FONKSİYONLARI
 function drawPaddle(x, y, height, isFrozen = false) {
-  ctx.fillStyle = isFrozen ? "purple" : settings.paddleColor;
+  ctx.fillStyle = isFrozen ? "#9b59b6" : settings.paddleColor;
   ctx.fillRect(x, y, game.paddleWidth, height);
 }
 
@@ -473,33 +474,62 @@ function drawBall(ball) {
   ctx.closePath();
 }
 
-// Modify drawScore function to handle mobile and desktop
 function drawScore() {
-  // Only draw scores on canvas for desktop (when screen width > 768px)
   if (window.innerWidth > 768) {
     ctx.font = `${canvas.clientHeight * 0.06}px Arial`;
     ctx.fillStyle = "#fff";
     ctx.textAlign = "center";
-    ctx.fillText(
-      game.player.score,
-      canvas.clientWidth / 4,
-      canvas.clientHeight * 0.1
-    );
-    ctx.fillText(
-      game.computer.score,
-      (3 * canvas.clientWidth) / 4,
-      canvas.clientHeight * 0.1
-    );
+    ctx.fillText(game.player.score, canvas.clientWidth / 4, canvas.clientHeight * 0.1);
+    ctx.fillText(game.computer.score, (3 * canvas.clientWidth) / 4, canvas.clientHeight * 0.1);
   }
 }
 
-function drawFirework(x, y) {
-  for (let i = 0; i < 30; i++) {
+// PERFORMANSLI HAVAI FİŞEK PARÇACIK MOTORU
+function createFireworkExplosion(x, y) {
+  const count = 40;
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = Math.random() * 5 + 2;
+    fireworks.push({
+      x: x,
+      y: y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      alpha: 1,
+      decay: Math.random() * 0.02 + 0.015,
+      color: `hsl(${Math.random() * 360}, 100%, 60%)`,
+      radius: Math.random() * 3 + 2,
+    });
+  }
+}
+
+function updateAndDrawFireworks() {
+  if (Math.random() < 0.08 && fireworks.length < 160) {
+    createFireworkExplosion(
+      Math.random() * canvas.clientWidth,
+      Math.random() * (canvas.clientHeight * 0.6)
+    );
+  }
+
+  for (let i = fireworks.length - 1; i >= 0; i--) {
+    const p = fireworks[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.08;
+    p.alpha -= p.decay;
+
+    if (p.alpha <= 0) {
+      fireworks.splice(i, 1);
+      continue;
+    }
+
+    ctx.save();
+    ctx.globalAlpha = p.alpha;
     ctx.beginPath();
-    ctx.arc(x, y, Math.random() * 4, 0, Math.PI * 2);
-    ctx.fillStyle = `hsl(${Math.random() * 360}, 100%, 50%)`;
+    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+    ctx.fillStyle = p.color;
     ctx.fill();
-    ctx.closePath();
+    ctx.restore();
   }
 }
 
@@ -525,22 +555,9 @@ function drawStarryBackground() {
   });
 }
 
-function drawBlackBackground() {
-  ctx.fillStyle = "black";
-  ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
-  ctx.fillStyle = "white";
-  blacks.forEach((black) => {
-    ctx.beginPath();
-    ctx.arc(black.x, black.y, black.radius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.closePath();
-  });
-}
-
 function drawEnergyBackground() {
   ctx.fillStyle = "black";
   ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
-
   energyLines.forEach((line) => {
     ctx.beginPath();
     ctx.moveTo(line.x, line.y);
@@ -548,9 +565,7 @@ function drawEnergyBackground() {
       line.x + Math.cos(line.angle) * line.length,
       line.y + Math.sin(line.angle) * line.length
     );
-    ctx.strokeStyle = `hsl(${
-      Math.abs(Math.sin(line.x / 100)) * 120 + 200
-    }, 100%, 50%)`;
+    ctx.strokeStyle = `hsl(${Math.abs(Math.sin(line.x / 100)) * 120 + 200}, 100%, 50%)`;
     ctx.stroke();
   });
 }
@@ -558,28 +573,16 @@ function drawEnergyBackground() {
 function resetBall(ball) {
   ball.x = canvas.clientWidth / 2;
   ball.y = canvas.clientHeight / 2;
-  ball.dx *= -1;
-
-  ball.dx += Math.sign(ball.dx) * (ball.baseSpeed * 0.1);
-  ball.dy += Math.sign(ball.dy) * (ball.baseSpeed * 0.1);
+  ball.dx = -Math.sign(ball.dx || 1) * ball.baseSpeed;
+  ball.dy = (Math.random() > 0.5 ? 1 : -1) * ball.baseSpeed * 0.8;
 }
 
 function spawnPowerUp() {
   const types = ["widenPaddle", "freezeOpponent", "duplicateBall"];
   const type = types[Math.floor(Math.random() * types.length)];
-
-  let color = "";
-  switch (type) {
-    case "widenPaddle":
-      color = "green";
-      break;
-    case "freezeOpponent":
-      color = "purple";
-      break;
-    case "duplicateBall":
-      color = "cyan";
-      break;
-  }
+  let color = "green";
+  if (type === "freezeOpponent") color = "purple";
+  if (type === "duplicateBall") color = "cyan";
 
   powerup = {
     x: Math.random() * (canvas.clientWidth / 2) + canvas.clientWidth / 4,
@@ -595,7 +598,7 @@ function applyPowerUpEffect() {
 
   switch (powerup.type) {
     case "widenPaddle":
-      game.player.height = game.player.height * 1.5;
+      game.player.height = game.player.originalHeight * 1.5;
       setTimeout(() => {
         game.player.height = game.player.originalHeight;
       }, 10000);
@@ -615,6 +618,7 @@ function applyPowerUpEffect() {
           radius: originalBall.radius,
           dx: -originalBall.dx,
           dy: -originalBall.dy,
+          baseSpeed: originalBall.baseSpeed,
         });
       }
       break;
@@ -624,52 +628,66 @@ function applyPowerUpEffect() {
   lastPowerUpTime = Date.now();
 }
 
-// Yeni animasyon değişkenleri
+// KAZANMA METİN ANİMASYONU
 let textScale = 0;
 let textOpacity = 0;
-const maxTextScale = 1.0;
-const textAnimationSpeed = 0.02;
 
 function animateWinText() {
-  // Metin animasyonunu güncelle
-  if (textScale < maxTextScale) {
-    textScale += textAnimationSpeed;
-    textOpacity += textAnimationSpeed;
-    if (textScale > maxTextScale) {
-      textScale = maxTextScale;
-    }
-    if (textOpacity > 1) {
-      textOpacity = 1;
-    }
+  if (textScale < 1.0) {
+    textScale += 0.02;
+    textOpacity += 0.02;
   }
-
-  ctx.font = `${Math.floor(100 * textScale)}px 'Bangers', cursive`;
+  ctx.font = `${Math.floor(80 * Math.min(1.0, textScale))}px 'Bangers', cursive`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
+  ctx.fillStyle = `rgba(255, 215, 0, ${Math.min(1.0, textOpacity)})`;
+  ctx.fillText("🏆 SEN KAZANDIN!", canvas.clientWidth / 2, canvas.clientHeight / 2);
+}
 
-  // Parlama efekti için gölge ayarları
-  ctx.shadowColor = `rgba(255, 215, 0, ${textOpacity})`;
-  ctx.shadowBlur = 20;
+// GELİŞMİŞ ÇARPIŞMA VE SPIN FİZİĞİ
+function checkPaddleCollision(ball, paddle, isPlayer) {
+  const paddleRight = paddle.x + game.paddleWidth;
+  const paddleBottom = paddle.y + paddle.height;
 
-  // Yazı rengi ve opasitesi
-  ctx.fillStyle = `rgba(255, 215, 0, ${textOpacity})`;
+  if (
+    ball.x + ball.radius >= paddle.x &&
+    ball.x - ball.radius <= paddleRight &&
+    ball.y + ball.radius >= paddle.y &&
+    ball.y - ball.radius <= paddleBottom
+  ) {
+    if ((isPlayer && ball.dx < 0) || (!isPlayer && ball.dx > 0)) {
+      const paddleCenterY = paddle.y + paddle.height / 2;
+      const hitPoint = (ball.y - paddleCenterY) / (paddle.height / 2);
+      const clampedHit = Math.max(-1, Math.min(1, hitPoint));
 
-  // Metni canvas'ın tam ortasına çiz
-  const text = "🏆 SEN KAZANDIN!";
-  ctx.fillText(text, canvas.clientWidth / 2, canvas.clientHeight / 2);
+      const maxAngle = Math.PI / 3.5; // ~51 derece
+      const bounceAngle = clampedHit * maxAngle;
 
-  // Parlama efektini kapat
-  ctx.shadowBlur = 0;
+      const currentSpeed = Math.hypot(ball.dx, ball.dy);
+      const newSpeed = Math.min(currentSpeed * 1.03, canvas.clientWidth * 0.02);
 
-  // Animasyon tamamlanmadıysa devam et
-  if (textScale < maxTextScale) {
-    requestAnimationFrame(animateWinText);
+      const direction = isPlayer ? 1 : -1;
+      ball.dx = direction * newSpeed * Math.cos(bounceAngle);
+      ball.dy = newSpeed * Math.sin(bounceAngle);
+
+      if (isPlayer) {
+        ball.x = paddleRight + ball.radius;
+      } else {
+        ball.x = paddle.x - ball.radius;
+      }
+
+      sounds.play("hit");
+    }
   }
 }
 
+// OYUN DÖNGÜSÜ & DELTA TIME NORMALİZASYONU
 let lastTime = 0;
+
 function gameLoop(timestamp) {
-  const deltaTime = (timestamp - lastTime) / 16.666;
+  if (!lastTime) lastTime = timestamp;
+  const rawDelta = (timestamp - lastTime) / 16.666;
+  const deltaTime = Math.min(Math.max(rawDelta, 0.1), 2.0); // Extreme delta sapmalarını engelle
   lastTime = timestamp;
 
   if (!isPaused) {
@@ -683,12 +701,11 @@ function update(deltaTime) {
   if (game.player.score >= 3 || game.computer.score >= 3) {
     if (!gameOver) {
       if (game.player.score >= 3) {
-        playSound(winGameSound);
-        textScale = 0; // Animasyonu baştan başlat
-        textOpacity = 0; // Animasyonu baştan başlat
-        requestAnimationFrame(animateWinText);
+        sounds.play("win");
+        textScale = 0;
+        textOpacity = 0;
       } else {
-        playSound(loseGameSound);
+        sounds.play("lose");
       }
       gameOver = true;
     }
@@ -699,9 +716,10 @@ function update(deltaTime) {
     spawnPowerUp();
   }
 
+  // Arka plan hareketleri
   if (settings.bgTheme === "stars") {
     stars.forEach((star) => {
-      star.x -= star.speed;
+      star.x -= star.speed * deltaTime;
       if (star.x < 0) {
         star.x = canvas.clientWidth;
         star.y = Math.random() * canvas.clientHeight;
@@ -709,20 +727,10 @@ function update(deltaTime) {
     });
   }
 
-  if (settings.bgTheme === "blacks") {
-    blacks.forEach((black) => {
-      black.x -= black.speed;
-      if (black.x < 0) {
-        black.x = canvas.clientWidth;
-        black.y = Math.random() * canvas.clientHeight;
-      }
-    });
-  }
-
   if (settings.bgTheme === "energy") {
     energyLines.forEach((line) => {
-      line.x += Math.cos(line.angle) * line.speed;
-      line.y += Math.sin(line.angle) * line.speed;
+      line.x += Math.cos(line.angle) * line.speed * deltaTime;
+      line.y += Math.sin(line.angle) * line.speed * deltaTime;
       if (
         line.x < 0 ||
         line.x > canvas.clientWidth ||
@@ -736,36 +744,54 @@ function update(deltaTime) {
     });
   }
 
-  const playerSpeed = 7;
+  // Oyuncu Hareket Güncellemesi
+  const playerSpeed = paddleSpeed * deltaTime * (canvas.clientHeight / 500);
   if (upPressed && game.player.y > 0) {
-    game.player.y -= playerSpeed * deltaTime * (canvas.clientHeight / 500);
+    game.player.y -= playerSpeed;
   }
-
   if (downPressed && game.player.y < canvas.clientHeight - game.player.height) {
-    game.player.y += playerSpeed * deltaTime * (canvas.clientHeight / 500);
+    game.player.y += playerSpeed;
   }
 
+  // Bilgisayar AI Yumuşatması (Smooth Motion)
   if (!isComputerFrozen) {
-    if (Math.random() < hitProbability) {
-      const targetY = balls[0].y - game.computer.height / 2;
-      game.computer.y += (targetY - game.computer.y) * 0.1 * deltaTime;
+    let targetBall = balls[0];
+    if (balls.length > 1) {
+      targetBall = balls.reduce((prev, curr) => (curr.x > prev.x ? curr : prev));
+    }
+
+    const targetY = targetBall.y - game.computer.height / 2;
+    const diffY = targetY - game.computer.y;
+
+    let aiSpeedFactor = 0.08;
+    if (difficulty === "kolay") aiSpeedFactor = 0.04;
+    else if (difficulty === "orta") aiSpeedFactor = 0.08;
+    else if (difficulty === "zor") aiSpeedFactor = 0.14;
+
+    game.computer.y += diffY * aiSpeedFactor * deltaTime;
+
+    if (game.computer.y < 0) game.computer.y = 0;
+    if (game.computer.y + game.computer.height > canvas.clientHeight) {
+      game.computer.y = canvas.clientHeight - game.computer.height;
     }
   }
-  if (game.computer.y < 0) game.computer.y = 0;
-  if (game.computer.y + game.computer.height > canvas.clientHeight)
-    game.computer.y = canvas.clientHeight - game.computer.height;
 
-  balls.forEach((ball, index) => {
+  // Top Fiziği ve Çarpışmalar
+  for (let index = balls.length - 1; index >= 0; index--) {
+    const ball = balls[index];
     ball.x += ball.dx * deltaTime;
     ball.y += ball.dy * deltaTime;
 
-    if (
-      ball.y + ball.radius > canvas.clientHeight ||
-      ball.y - ball.radius < 0
-    ) {
+    // Alt / Üst Duvar Çarpışması
+    if (ball.y + ball.radius > canvas.clientHeight) {
+      ball.y = canvas.clientHeight - ball.radius;
+      ball.dy *= -1;
+    } else if (ball.y - ball.radius < 0) {
+      ball.y = ball.radius;
       ball.dy *= -1;
     }
 
+    // PowerUp Çarpışması
     if (powerup) {
       const distance = Math.hypot(ball.x - powerup.x, ball.y - powerup.y);
       if (distance < ball.radius + powerup.radius) {
@@ -773,45 +799,31 @@ function update(deltaTime) {
       }
     }
 
-    if (
-      ball.x - ball.radius < game.player.x + game.paddleWidth &&
-      ball.y > game.player.y &&
-      ball.y < game.player.y + game.player.height
-    ) {
-      ball.dx *= -1;
-      playSound(hitSound);
-    }
+    // Raket Çarpışma Kontrolleri
+    checkPaddleCollision(ball, game.player, true);
+    checkPaddleCollision(ball, game.computer, false);
 
-    if (
-      ball.x + ball.radius > game.computer.x &&
-      ball.y > game.computer.y &&
-      ball.y < game.computer.y + game.computer.height
-    ) {
-      ball.dx *= -1;
-      playSound(hitSound);
-    }
-
+    // Skor Kontrolleri
     if (ball.x < 0) {
       game.computer.score++;
-      playSound(scoreSound);
-      updateScoreboard(); // Update scoreboard when computer scores
+      sounds.play("pcGoal");
+      updateScoreboard();
       if (balls.length > 1) {
         balls.splice(index, 1);
       } else {
         resetBall(ball);
       }
-    }
-    if (ball.x > canvas.clientWidth) {
+    } else if (ball.x > canvas.clientWidth) {
       game.player.score++;
-      playSound(scoreSound);
-      updateScoreboard(); // Update scoreboard when player scores
+      sounds.play("score");
+      updateScoreboard();
       if (balls.length > 1) {
         balls.splice(index, 1);
       } else {
         resetBall(ball);
       }
     }
-  });
+  }
 }
 
 function draw() {
@@ -825,12 +837,7 @@ function draw() {
   }
 
   if (gameOver) {
-    ctx.font = `${canvas.clientHeight * 0.1}px Arial`;
-    ctx.textAlign = "center";
-
     if (game.player.score >= 3) {
-      // Bu kısım animasyonlu metin fonksiyonu tarafından çizilecek,
-      // bu yüzden burada sadece arka planı çiziyoruz.
       const gradient = ctx.createRadialGradient(
         canvas.clientWidth / 2,
         canvas.clientHeight / 2,
@@ -839,32 +846,21 @@ function draw() {
         canvas.clientHeight / 2,
         canvas.clientWidth
       );
-      gradient.addColorStop(0, "rgba(255,215,0,0.7)");
-      gradient.addColorStop(1, "rgba(0,0,0,0.7)");
+      gradient.addColorStop(0, "rgba(255,215,0,0.4)");
+      gradient.addColorStop(1, "rgba(0,0,0,0.85)");
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
-      ctx.fillStyle = "gold";
-      ctx.fillText(
-        "🏆 SEN KAZANDIN!",
-        canvas.clientWidth / 2,
-        canvas.clientHeight / 2
-      );
-    } else {
-      ctx.fillStyle = "red";
-      ctx.fillText(
-        "💀 BİLGİSAYAR KAZANDI!",
-        canvas.clientWidth / 2,
-        canvas.clientHeight / 2
-      );
-    }
 
-    if (game.player.score >= 3) {
-      for (let i = 0; i < 20; i++) {
-        drawFirework(
-          Math.random() * canvas.clientWidth,
-          Math.random() * canvas.clientHeight
-        );
-      }
+      animateWinText();
+      updateAndDrawFireworks();
+    } else {
+      ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
+      ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+      ctx.font = `${canvas.clientHeight * 0.09}px 'Bangers', Arial`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#ff4757";
+      ctx.fillText("💀 BİLGİSAYAR KAZANDI!", canvas.clientWidth / 2, canvas.clientHeight / 2);
     }
     return;
   }
@@ -878,8 +874,8 @@ function draw() {
   );
 
   balls.forEach((ball) => drawBall(ball));
-
   drawScore();
   drawPowerUp();
 }
+
 requestAnimationFrame(gameLoop);
