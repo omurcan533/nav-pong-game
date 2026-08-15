@@ -2,7 +2,13 @@
 <html lang="tr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Pong Oyunu</title>
     <link
       rel="stylesheet"
@@ -109,6 +115,13 @@
               step="0.1"
               value="0.5"
             />
+          </label>
+          <label>
+            Mobil Kontrol Düzeni:
+            <select id="controlLayoutSelect">
+              <option value="sideBySide">Yan Yana (Alt)</option>
+              <option value="stackedRight">Sağda Alt Alta</option>
+            </select>
           </label>
           <button id="closeSettingsBtn">Kapat</button>
         </div>

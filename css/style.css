@@ -1,3 +1,13 @@
+* {
+  box-sizing: border-box;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
   display: flex;
   justify-content: center;
@@ -9,56 +19,25 @@ body {
   flex-direction: column;
   padding: 20px;
   overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  touch-action: none;
 }
 
 .game-container {
+  position: relative;
   width: 85%;
-  max-width: none;
-  height: 85vh;
+  max-width: 1200px;
+  height: 80vh;
   padding: 0;
   margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .controls-mobile {
-  display: flex;
-  justify-content: center;
-}
-
-/* Telefon ekranları için */
-@media (max-width: 768px) {
-  .game-container {
-    height: 30vh;
-    width: 100%; /* istersen genişliği de tam ekran yapabilirsin */
-    margin-bottom: 100px; /* Footer için alan bırak */
-    margin-top: 80px; /* Scoreboard için alan bırak */
-  }
-  body {
-    min-height: 73vh;
-    align-items: flex-start; /* Elemanları üstten başlat */
-    padding-top: 0;
-    padding-bottom: 60px; /* Footer için alan bırak */
-  }
-  .controls {
-    flex-direction: column;
-  }
-  .controls-mobile {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 14px;
-    margin-top: 5px;
-    margin-bottom: 5px;
-    padding: 5px 5px;
-    border-radius: 8px;
-  }
-}
-
-/* Sadece telefon + yatay mod için */
-@media (max-width: 932px) and (orientation: landscape) {
-  .game-container {
-    height: 74vh; /* menü için alan bırak */
-    width: 100%; /* tam genişlik */
-  }
+  display: none;
 }
 
 #levelMenu h1 {
@@ -66,23 +45,25 @@ body {
   font-size: 64px;
   color: #ffcc00;
   text-shadow: 3px 3px #000;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
+  text-align: center;
 }
 
-/* Alt yazı */
 #levelMenu p {
-  font-size: 20px;
+  font-size: 18px;
   color: #ccc;
-  margin-bottom: 30px;
+  margin-bottom: 25px;
+  text-align: center;
 }
 
 canvas {
   background-color: #000;
   border: 2px solid #555;
-  border-radius: 10px;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+  border-radius: 12px;
+  box-shadow: 0 0 25px rgba(0, 0, 0, 0.7);
   width: 100%;
   height: 100%;
+  touch-action: none;
 }
 
 .controls-container {
@@ -91,8 +72,9 @@ canvas {
   justify-content: center;
   align-items: center;
   margin-top: 15px;
-  pointer-events: auto; /* butonlar tıklanabilir olsun */
+  pointer-events: auto;
   z-index: 10;
+  gap: 20px;
 }
 
 .controls {
@@ -102,18 +84,57 @@ canvas {
 }
 
 #manuelControl {
-  width: 30%;
-  display: none; /* varsayılan: gizli */
-  flex-direction: column;
+  display: none;
+  width: 100%;
+  gap: 15px;
+  justify-content: center;
   align-items: center;
-  justify-content: space-between;
+}
+
+#manuelControl.side-by-side {
+  position: static;
+  flex-direction: row;
+  width: 100%;
   gap: 15px;
 }
 
-#manuelControl button {
-  width: 80%;
-  padding: 24px;
+#manuelControl.side-by-side button {
+  flex: 1;
+  max-width: 180px;
+  padding: 16px;
+  font-size: 22px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #007bff, #0056b3);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+
+#manuelControl.stacked-right {
+  position: static;
+  display: flex;
+  flex-direction: column;
+  width: auto;
+  gap: 10px;
+  margin-left: auto;
+  align-items: center;
+}
+
+#manuelControl.stacked-right button {
+  width: 52px;
+  height: 52px;
+  padding: 0;
   font-size: 20px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, #007bff, #0056b3);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  flex: none;
+}
+
+#manuelControl button:active {
+  transform: scale(0.92);
+  background: #004085;
 }
 
 button {
@@ -124,13 +145,18 @@ button {
   padding: 12px 20px;
   font-size: 16px;
   cursor: pointer;
-  transition: background-color 0.3s, transform 0.2s;
+  transition: background-color 0.2s, transform 0.15s;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+  touch-action: manipulation;
 }
 
 button:hover {
   background-color: #555;
   transform: translateY(-2px);
+}
+
+button:active {
+  transform: translateY(1px);
 }
 
 .menu-container {
@@ -139,41 +165,45 @@ button:hover {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.85);
   display: flex;
   justify-content: center;
   align-items: center;
   flex-direction: column;
   gap: 20px;
   z-index: 100;
-  backdrop-filter: blur(5px);
-  border-radius: 10px;
+  backdrop-filter: blur(6px);
+  border-radius: 12px;
+  padding: 20px;
 }
 
 .menu-container h2,
 .menu-container h3 {
   color: #fff;
   text-align: center;
+  margin: 0;
 }
 
 .level-buttons button {
-  background-color: #007bff;
+  background: linear-gradient(135deg, #007bff, #0056b3);
 }
 
 .level-buttons button:hover {
-  background-color: #0056b3;
+  background: linear-gradient(135deg, #0056b3, #003d80);
 }
 
 .settings-content {
   display: flex;
   flex-direction: column;
   gap: 15px;
-  background: #333;
-  padding: 30px;
-  border-radius: 10px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-  width: 80%;
+  background: #2a2a2a;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.5);
+  width: 90%;
   max-width: 400px;
+  max-height: 85vh;
+  overflow-y: auto;
 }
 
 .settings-content label {
@@ -181,15 +211,15 @@ button:hover {
   justify-content: space-between;
   align-items: center;
   gap: 10px;
-  font-size: 18px;
+  font-size: 16px;
 }
 
 input[type="color"],
 select {
   border: 1px solid #555;
-  border-radius: 5px;
-  padding: 5px;
-  background: #222;
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: #1e1e1e;
   color: #fff;
   cursor: pointer;
 }
@@ -201,94 +231,139 @@ input[type="range"] {
   height: 8px;
   border-radius: 5px;
 }
+
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   background: #007bff;
   border-radius: 50%;
   cursor: pointer;
-  transition: background 0.3s;
+  transition: background 0.2s;
 }
-input[type="range"]::-webkit-slider-thumb:hover {
-  background: #0056b3;
-}
+
 button:focus {
   outline: none;
-  box-shadow: none;
 }
 
 #scoreboard {
   display: none;
 }
 
+.footer {
+  display: none;
+}
+
+/* TELEFON VE TABLET DİK EKRAN MODU */
 @media screen and (max-width: 768px) {
+  body {
+    padding: 0;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    align-items: center;
+    justify-content: flex-start;
+  }
+
   #scoreboard {
     display: flex;
     position: fixed;
-    top: 10px;
+    top: 0;
     left: 0;
     right: 0;
     width: 100%;
-    padding: 10px;
-    gap: 10px;
+    padding: 8px 15px;
+    gap: 15px;
     justify-content: center;
-    margin-top: 0;
     font-family: "Michroma", sans-serif;
     font-weight: bold;
     z-index: 200;
-    background-color: rgba(26, 26, 26, 0.95);
+    background-color: rgba(20, 20, 20, 0.95);
     border-bottom: 1px solid #333;
-    box-sizing: border-box;
   }
-  #manuelControl {
-    display: flex;
-  }
-}
 
-@media screen and (max-width: 768px) {
   .user,
   .pc {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     flex: 1;
-    min-width: 0;
-    justify-content: center;
+    justify-content: space-between;
     align-items: center;
-    text-align: center;
     border: 1px solid #d14646;
     border-radius: 8px;
-    padding: 5px 5px;
-    margin: 0;
-    background-color: rgba(209, 70, 70, 0.1);
-    font-family: "Michroma", sans-serif;
-    font-weight: bold;
+    padding: 4px 12px;
+    background-color: rgba(209, 70, 70, 0.15);
   }
 
   .user p,
   .pc p,
   .user div,
   .pc div {
-    margin: 5px 0;
-    font-size: 14px;
-    font-family: "Michroma", sans-serif;
-    font-weight: bold;
+    margin: 0;
+    font-size: 13px;
     color: #fff;
   }
 
   .user p:last-child,
   .pc div:last-child {
-    font-size: 18px;
-    color: #d14646;
+    font-size: 16px;
+    color: #ff4757;
     font-weight: bold;
   }
-}
 
-.footer {
-  display: none;
-}
+  .game-container {
+    width: 96%;
+    height: calc(100vh - 145px);
+    margin-top: 55px;
+    margin-bottom: 45px;
+  }
 
-@media screen and (max-width: 768px) {
+  .controls-container {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    gap: 10px;
+  }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-start;
+  }
+
+  .controls button {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  #manuelControl {
+    display: flex;
+  }
+
+  #manuelControl.side-by-side {
+    width: 100%;
+    flex-direction: row;
+  }
+
+  #manuelControl.stacked-right {
+    width: auto;
+    flex-direction: column;
+    margin-left: auto;
+  }
+
+  .controls-mobile {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    font-size: 12px;
+    margin-top: 4px;
+    color: #aaa;
+  }
+
   .footer {
     display: flex;
     justify-content: center;
@@ -297,43 +372,52 @@ button:focus {
     bottom: 0;
     left: 0;
     width: 100%;
-    background-color: rgba(26, 26, 26, 0.95);
-    padding: 10px 0;
-    font-family: "Michroma", sans-serif;
-    font-weight: bold;
+    background-color: rgba(20, 20, 20, 0.95);
+    padding: 6px 0;
     z-index: 1000;
     border-top: 1px solid #333;
   }
-}
 
-.footer p {
-  margin: 0;
-  font-size: 14px;
-  color: #ccc;
-  font-family: "Michroma", sans-serif;
-  font-weight: bold;
-}
-
-@media screen and (max-width: 768px) {
-  .controls-mobile {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    font-size: 14px;
-    margin-top: 10px;
-    margin-bottom: 10px;
-    padding: 12px 15px;
-    border-radius: 12px;
+  .footer p {
+    margin: 0;
+    font-size: 12px;
+    color: #888;
+    font-family: "Michroma", sans-serif;
   }
 
-  .controls-mobile:hover {
-    background: linear-gradient(
-      135deg,
-      rgba(0, 123, 255, 0.2),
-      rgba(0, 123, 255, 0.3)
-    );
-    transform: translateY(-2px);
-    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+  #levelMenu h1 {
+    font-size: 42px;
+  }
+
+  #levelMenu p {
+    font-size: 14px;
+  }
+
+  .level-buttons {
+    flex-direction: column;
+    width: 100%;
+    max-width: 250px;
+  }
+
+  .level-buttons button {
+    width: 100%;
+    padding: 14px;
+    font-size: 18px;
+  }
+}
+
+/* YATAY MOBİL MODU */
+@media screen and (max-width: 932px) and (orientation: landscape) {
+  .game-container {
+    height: 82vh;
+    width: 98%;
+  }
+
+  #scoreboard {
+    display: none;
+  }
+
+  .footer {
+    display: none;
   }
 }

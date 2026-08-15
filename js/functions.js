@@ -1,4 +1,4 @@
-// --- SES MOTORU (Web Audio API & HTML5 Audio Fallback) ---
+// --- SES & HAPTIC MOTORU (Web Audio API & Mobile Vibration) ---
 class SoundEngine {
   constructor() {
     this.ctx = null;
@@ -35,6 +35,14 @@ class SoundEngine {
     }
   }
 
+  vibrate(pattern = 15) {
+    if ("vibrate" in navigator) {
+      try {
+        navigator.vibrate(pattern);
+      } catch (e) {}
+    }
+  }
+
   async loadSound(name, url) {
     if (!this.ctx) return;
     try {
@@ -57,6 +65,10 @@ class SoundEngine {
     if (this.volume <= 0) return;
     this.ensureContext();
 
+    if (name === "hit") this.vibrate(15);
+    else if (name === "score" || name === "pcGoal") this.vibrate([30, 40, 30]);
+    else if (name === "win") this.vibrate([80, 40, 80, 40, 120]);
+
     if (this.ctx && this.buffers[name]) {
       try {
         const source = this.ctx.createBufferSource();
@@ -72,7 +84,6 @@ class SoundEngine {
       }
     }
 
-    // Web Audio hazır değilse HTML5 Audio fallback kullan
     if (this.soundFiles[name]) {
       const fallback = new Audio(this.soundFiles[name]);
       fallback.volume = this.volume;
@@ -121,6 +132,8 @@ const paddleColorInput = document.getElementById("paddleColor");
 const bgThemeSelect = document.getElementById("bgTheme");
 const musicSelect = document.getElementById("musicSelect");
 const sfxVolumeInput = document.getElementById("sfxVolume");
+const controlLayoutSelect = document.getElementById("controlLayoutSelect");
+const manuelControl = document.getElementById("manuelControl");
 const pauseBtn = document.getElementById("pauseBtn");
 const restartBtn = document.getElementById("restartBtn");
 const settingsBtn = document.getElementById("settingsBtn");
@@ -147,7 +160,36 @@ let settings = {
   ballColor: "#ffffff",
   paddleColor: "#ff0000",
   bgTheme: "black",
+  controlLayout: "sideBySide",
 };
+
+// KONTROL DÜZENİ GÜNCELLEME
+function updateControlLayout(layout) {
+  settings.controlLayout = layout;
+  if (!manuelControl) return;
+
+  if (layout === "stackedRight") {
+    manuelControl.classList.remove("side-by-side");
+    manuelControl.classList.add("stacked-right");
+  } else {
+    manuelControl.classList.remove("stacked-right");
+    manuelControl.classList.add("side-by-side");
+  }
+
+  try {
+    localStorage.setItem("pong_control_layout", layout);
+  } catch (e) {}
+}
+
+if (controlLayoutSelect) {
+  const savedLayout = localStorage.getItem("pong_control_layout") || "sideBySide";
+  controlLayoutSelect.value = savedLayout;
+  updateControlLayout(savedLayout);
+
+  controlLayoutSelect.addEventListener("change", (e) => {
+    updateControlLayout(e.target.value);
+  });
+}
 
 // BUTON TIKLAMA SESLERİ
 document.querySelectorAll("button").forEach((btn) => {
@@ -195,7 +237,7 @@ function initializeGameElements() {
   const canvasWidth = canvas.clientWidth;
   const canvasHeight = canvas.clientHeight;
 
-  game.paddleWidth = canvasWidth * 0.0125;
+  game.paddleWidth = Math.max(8, canvasWidth * 0.0125);
   game.playerHeight = canvasHeight * 0.22;
   game.computerHeight = canvasHeight * 0.22;
 
@@ -219,7 +261,7 @@ function initializeGameElements() {
     {
       x: canvasWidth / 2,
       y: canvasHeight / 2,
-      radius: canvasWidth * 0.01,
+      radius: Math.max(6, canvasWidth * 0.01),
       dx: (canvasWidth / 800) * 5,
       dy: (canvasHeight / 500) * 5,
       baseSpeed: (canvasWidth / 800) * 5,
@@ -244,11 +286,10 @@ function setupCanvasSize() {
     initializeGameElements();
     game.initialized = true;
   } else {
-    // Boyut değiştiğinde mevcut oyunu sıfırlamadan oranla
     const widthRatio = newWidth / (game.lastCanvasWidth || newWidth);
     const heightRatio = newHeight / (game.lastCanvasHeight || newHeight);
 
-    game.paddleWidth = newWidth * 0.0125;
+    game.paddleWidth = Math.max(8, newWidth * 0.0125);
     game.playerHeight = newHeight * 0.22;
     game.computerHeight = newHeight * 0.22;
 
@@ -263,7 +304,7 @@ function setupCanvasSize() {
     balls.forEach((ball) => {
       ball.x *= widthRatio;
       ball.y *= heightRatio;
-      ball.radius = newWidth * 0.01;
+      ball.radius = Math.max(6, newWidth * 0.01);
       ball.baseSpeed = (newWidth / 800) * 5;
     });
 
@@ -321,6 +362,9 @@ canvas.addEventListener("touchmove", (e) => {
 
 canvas.addEventListener("touchstart", (e) => {
   sounds.ensureContext();
+  if (e.target === canvas) {
+    e.preventDefault();
+  }
   const rect = canvas.getBoundingClientRect();
   const touchY = e.touches[0].clientY - rect.top;
   if (touchY < canvas.clientHeight / 2) {
@@ -330,14 +374,14 @@ canvas.addEventListener("touchstart", (e) => {
     downPressed = true;
     upPressed = false;
   }
-});
+}, { passive: false });
 
 canvas.addEventListener("touchend", () => {
   upPressed = false;
   downPressed = false;
 });
 
-// MANUEL BUTONLARİ İÇİN SMOOTH KONTROL (setInterval yerine event flag)
+// MANUEL BUTONLAR İÇİN SMOOTH KONTROL
 function bindHoldButton(id, direction) {
   const btn = document.getElementById(id);
   if (!btn) return;
@@ -349,13 +393,13 @@ function bindHoldButton(id, direction) {
     if (direction === "down") downPressed = true;
   };
 
-  const stop = () => {
+  const stop = (e) => {
     if (direction === "up") upPressed = false;
     if (direction === "down") downPressed = false;
   };
 
   btn.addEventListener("mousedown", start);
-  btn.addEventListener("touchstart", start);
+  btn.addEventListener("touchstart", start, { passive: false });
   btn.addEventListener("mouseup", stop);
   btn.addEventListener("mouseleave", stop);
   btn.addEventListener("touchend", stop);
@@ -587,7 +631,7 @@ function spawnPowerUp() {
   powerup = {
     x: Math.random() * (canvas.clientWidth / 2) + canvas.clientWidth / 4,
     y: Math.random() * (canvas.clientHeight / 2) + canvas.clientHeight / 4,
-    radius: canvas.clientWidth * 0.02,
+    radius: Math.max(12, canvas.clientWidth * 0.02),
     type: type,
     color: color,
   };
@@ -628,7 +672,7 @@ function applyPowerUpEffect() {
   lastPowerUpTime = Date.now();
 }
 
-// KAZANMA METİN ANİMASYONU
+// KAZANMA METİN ANİMASYONU (EKRANA TAM SIĞAN DİNAMİK YAZI)
 let textScale = 0;
 let textOpacity = 0;
 
@@ -637,11 +681,13 @@ function animateWinText() {
     textScale += 0.02;
     textOpacity += 0.02;
   }
-  ctx.font = `${Math.floor(80 * Math.min(1.0, textScale))}px 'Bangers', cursive`;
+  const maxFont = Math.min(canvas.clientWidth * 0.09, canvas.clientHeight * 0.12);
+  const fontSize = Math.max(16, Math.floor(maxFont * Math.min(1.0, textScale)));
+  ctx.font = `${fontSize}px 'Bangers', cursive`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = `rgba(255, 215, 0, ${Math.min(1.0, textOpacity)})`;
-  ctx.fillText("🏆 SEN KAZANDIN!", canvas.clientWidth / 2, canvas.clientHeight / 2);
+  ctx.fillText("🏆 SEN KAZANDIN!", canvas.clientWidth / 2, canvas.clientHeight / 2, canvas.clientWidth * 0.85);
 }
 
 // GELİŞMİŞ ÇARPIŞMA VE SPIN FİZİĞİ
@@ -660,7 +706,7 @@ function checkPaddleCollision(ball, paddle, isPlayer) {
       const hitPoint = (ball.y - paddleCenterY) / (paddle.height / 2);
       const clampedHit = Math.max(-1, Math.min(1, hitPoint));
 
-      const maxAngle = Math.PI / 3.5; // ~51 derece
+      const maxAngle = Math.PI / 3.5;
       const bounceAngle = clampedHit * maxAngle;
 
       const currentSpeed = Math.hypot(ball.dx, ball.dy);
@@ -687,7 +733,7 @@ let lastTime = 0;
 function gameLoop(timestamp) {
   if (!lastTime) lastTime = timestamp;
   const rawDelta = (timestamp - lastTime) / 16.666;
-  const deltaTime = Math.min(Math.max(rawDelta, 0.1), 2.0); // Extreme delta sapmalarını engelle
+  const deltaTime = Math.min(Math.max(rawDelta, 0.1), 2.0);
   lastTime = timestamp;
 
   if (!isPaused) {
@@ -716,7 +762,6 @@ function update(deltaTime) {
     spawnPowerUp();
   }
 
-  // Arka plan hareketleri
   if (settings.bgTheme === "stars") {
     stars.forEach((star) => {
       star.x -= star.speed * deltaTime;
@@ -744,7 +789,6 @@ function update(deltaTime) {
     });
   }
 
-  // Oyuncu Hareket Güncellemesi
   const playerSpeed = paddleSpeed * deltaTime * (canvas.clientHeight / 500);
   if (upPressed && game.player.y > 0) {
     game.player.y -= playerSpeed;
@@ -753,7 +797,6 @@ function update(deltaTime) {
     game.player.y += playerSpeed;
   }
 
-  // Bilgisayar AI Yumuşatması (Smooth Motion)
   if (!isComputerFrozen) {
     let targetBall = balls[0];
     if (balls.length > 1) {
@@ -776,13 +819,11 @@ function update(deltaTime) {
     }
   }
 
-  // Top Fiziği ve Çarpışmalar
   for (let index = balls.length - 1; index >= 0; index--) {
     const ball = balls[index];
     ball.x += ball.dx * deltaTime;
     ball.y += ball.dy * deltaTime;
 
-    // Alt / Üst Duvar Çarpışması
     if (ball.y + ball.radius > canvas.clientHeight) {
       ball.y = canvas.clientHeight - ball.radius;
       ball.dy *= -1;
@@ -791,7 +832,6 @@ function update(deltaTime) {
       ball.dy *= -1;
     }
 
-    // PowerUp Çarpışması
     if (powerup) {
       const distance = Math.hypot(ball.x - powerup.x, ball.y - powerup.y);
       if (distance < ball.radius + powerup.radius) {
@@ -799,11 +839,9 @@ function update(deltaTime) {
       }
     }
 
-    // Raket Çarpışma Kontrolleri
     checkPaddleCollision(ball, game.player, true);
     checkPaddleCollision(ball, game.computer, false);
 
-    // Skor Kontrolleri
     if (ball.x < 0) {
       game.computer.score++;
       sounds.play("pcGoal");
@@ -856,11 +894,14 @@ function draw() {
     } else {
       ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
       ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
-      ctx.font = `${canvas.clientHeight * 0.09}px 'Bangers', Arial`;
+
+      const maxFont = Math.min(canvas.clientWidth * 0.08, canvas.clientHeight * 0.1);
+      const fontSize = Math.max(16, Math.floor(maxFont));
+      ctx.font = `${fontSize}px 'Bangers', Arial`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillStyle = "#ff4757";
-      ctx.fillText("💀 BİLGİSAYAR KAZANDI!", canvas.clientWidth / 2, canvas.clientHeight / 2);
+      ctx.fillText("💀 BİLGİSAYAR KAZANDI!", canvas.clientWidth / 2, canvas.clientHeight / 2, canvas.clientWidth * 0.85);
     }
     return;
   }
