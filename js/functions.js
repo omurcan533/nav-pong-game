@@ -65,6 +65,10 @@ class SoundEngine {
     if (this.volume <= 0) return;
     this.ensureContext();
 
+    if (name === "win" || name === "lose") {
+      this.pauseMusic();
+    }
+
     if (name === "hit") this.vibrate(15);
     else if (name === "score" || name === "pcGoal") this.vibrate([30, 40, 30]);
     else if (name === "win") this.vibrate([80, 40, 80, 40, 120]);
@@ -746,6 +750,7 @@ function gameLoop(timestamp) {
 function update(deltaTime) {
   if (game.player.score >= 3 || game.computer.score >= 3) {
     if (!gameOver) {
+      sounds.pauseMusic();
       if (game.player.score >= 3) {
         sounds.play("win");
         textScale = 0;
