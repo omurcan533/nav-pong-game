@@ -7,12 +7,12 @@ class SoundEngine {
     this.bgAudio.loop = true;
     this.volume = 0.5;
     this.soundFiles = {
-      hit: "sounds/scoreSound.mp3",
-      score: "sounds/myGoal.mp3",
+      hit: "sounds/scoresound2.wav",
+      score: "sounds/mygoal2.wav",
       pcGoal: "sounds/pcGoal.mp3",
       win: "sounds/galibiyet.mp3",
       lose: "sounds/yenilgi.mp3",
-      button: "sounds/tus-sesi.mp3",
+      button: "sounds/tussesi2.wav",
     };
     this.initAudioContext();
   }
